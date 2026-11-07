@@ -1,0 +1,16 @@
+{
+  "name": "Eshet Chayil",
+  "short_name": "Eshet Chayil",
+  "description": "My money, kept with wisdom. Proverbs 31.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f2fd",
+  "theme_color": "#6b2fa0",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
