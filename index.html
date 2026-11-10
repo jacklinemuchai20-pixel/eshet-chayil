@@ -109,14 +109,13 @@ table.tv{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric
 const V=[["Who can find a virtuous woman? for her price is far above rubies.","Proverbs 31:10"],["The heart of her husband doth safely trust in her, so that he shall have no need of spoil.","Proverbs 31:11"],["She will do him good and not evil all the days of her life.","Proverbs 31:12"],["She seeketh wool, and flax, and worketh willingly with her hands.","Proverbs 31:13"],["She is like the merchants’ ships; she bringeth her food from afar.","Proverbs 31:14"],["She riseth also while it is yet night, and giveth meat to her household, and a portion to her maidens.","Proverbs 31:15"],["She considereth a field, and buyeth it: with the fruit of her hands she planteth a vineyard.","Proverbs 31:16"],["She girdeth her loins with strength, and strengtheneth her arms.","Proverbs 31:17"],["She perceiveth that her merchandise is good: her candle goeth not out by night.","Proverbs 31:18"],["She stretcheth out her hand to the poor; yea, she reacheth forth her hands to the needy.","Proverbs 31:20"],["She is not afraid of the snow for her household: for all her household are clothed with scarlet.","Proverbs 31:21"],["She maketh herself coverings of tapestry; her clothing is silk and purple.","Proverbs 31:22"],["She maketh fine linen, and selleth it; and delivereth girdles unto the merchant.","Proverbs 31:24"],["Strength and honour are her clothing; and she shall rejoice in time to come.","Proverbs 31:25"],["She openeth her mouth with wisdom; and in her tongue is the law of kindness.","Proverbs 31:26"],["She looketh well to the ways of her household, and eateth not the bread of idleness.","Proverbs 31:27"],["Her children arise up, and call her blessed; her husband also, and he praiseth her.","Proverbs 31:28"],["Many daughters have done virtuously, but thou excellest them all.","Proverbs 31:29"],["Favour is deceitful, and beauty is vain: but a woman that feareth the LORD, she shall be praised.","Proverbs 31:30"],["Give her of the fruit of her hands; and let her own works praise her in the gates.","Proverbs 31:31"]];
 /* Each tab has a verse that explains why it exists */
 const TABV={plan:["She considereth a field, and buyeth it.","31:16 · she weighs it before she spends"],save:["She is not afraid of the snow for her household.","31:21 · ready before the cold comes"],owe:["She perceiveth that her merchandise is good.","31:18 · she knows what things truly cost"],rep:["Let her own works praise her in the gates.","31:31 · the record speaks for itself"]};
-const CATS_P=["Food","Transport","Airtime & data","Bills & rent","Shopping","Family","Household help","Church & giving","Health","School & learning","Unexpected","Other"];
-const CATS_B=["Stock & supplies","Delivery","Packaging","Marketing & ads","Transport","Airtime & data","Bills & rent","Salaries & wages","Equipment","Church & giving","Unexpected","Other"];
+const CATS_P=["Food","Transport","Airtime & data","Bills & rent","Shopping","Family","Household help","Church & giving","Health","School & learning","Loan repayment","Unexpected","Other"];
+const CATS_B=["Stock & supplies","Delivery","Packaging","Marketing & ads","Transport","Airtime & data","Bills & rent","Salaries & wages","Equipment","Church & giving","Loan repayment","Unexpected","Other"];
 const CATS=[...new Set(CATS_P.concat(CATS_B))];
 const ESSENTIAL=["Food","Transport","Airtime & data","Bills & rent","Family","Household help","Health","School & learning"];
-const INCATS={p:["From a person","Family support","Salary","Savings (Ziidi)","Refund","Other"],b:["Sales","Customer payment","Deposit for an order","Other"]};
+const INCATS={p:["From a person","Family support","Salary","Interest earned","Loan received","Refund","Other"],b:["Sales","Customer payment","Deposit for an order","Delivery fee (from client)","Interest earned","Loan received","Other"]};
 function catsFor(kind,inn){const k=kind=="b"?"b":"p",base=inn?INCATS[k]:k=="b"?CATS_B:CATS_P,x=((S.xc||{})[(inn?"i":"")+k]||[]);return base.concat(x.filter(c=>!base.includes(c)))}
 function catSelect(id,kind,inn,cur,extra){const l=catsFor(kind,inn);if(cur&&!l.includes(cur))l.push(cur);return`<select id="${id}" ${extra||""} onchange="catChg(this,'${kind=="b"?"b":"p"}',${inn?1:0})">${l.map(c=>`<option ${c==cur?"selected":""}>${esc(c)}</option>`).join("")}<option value="__new">＋ New category…</option></select>`}
-function catChg(sel,k,inn){if(sel.value=="__new")return newCat(sel,k,inn);if(sel.dataset.i!=null&&pend[+sel.dataset.i])pend[+sel.dataset.i].c=sel.value}
 async function newCat(sel,k,inn){const v=await askText("New category","e.g. Delivery, Packaging, Ads"),name=(v||"").trim();
  if(!name){sel.selectedIndex=0;return catChg(sel,k,inn)}const key=(inn?"i":"")+k;S.xc=S.xc||{};S.xc[key]=S.xc[key]||[];if(!catsFor(k,inn).includes(name))S.xc[key].push(name);save();
  if(![...sel.options].some(o=>o.value==name))sel.insertBefore(new Option(name,name),sel.querySelector('option[value="__new"]'));sel.value=name;catChg(sel,k,inn)}
@@ -127,16 +126,18 @@ const band=(t,a)=>{for(const[m,f]of t)if(a<=m)return f;return t[t.length-1][1]};
 
 /* ---------- State ---------- */
 const mkP=(n,z)=>({id:Math.random(),name:n,zf:z,tx:[],fz:[],debts:[],goals:[],bud:{p:{},b:{}},inc:{p:0,b:0},bills:[],chk:{},notes:{},mpw:{},fzl:{}});
+const DEF_ACCTS=()=>[{id:"cash",name:"Cash",type:"cash"},{id:"loop",name:"Loop (NCBA)",type:"bank",kw:"loop,ncba"},{id:"equity",name:"Equity",type:"bank",kw:"equity,eazzy"},{id:"kcb",name:"KCB",type:"bank",kw:"kcb"},{id:"ziidi",name:"Ziidi",type:"save",rate:6,kw:"ziidi"},{id:"mshwari",name:"M-Shwari",type:"save",rate:3,kw:"m-shwari,mshwari"},{id:"chumz",name:"Chumz",type:"save",rate:6,kw:"chumz,moneto"}];
 const DEF_SIMS=()=>[{id:"s1",name:"Jackie"},{id:"s2",name:"Exarkie"}];
-let S={p:[mkP("Jackie",true),mkP("Exarkie",false)],cur:0,zr:4,pin:"",give:10,sims:DEF_SIMS(),xc:{}};
+let S={p:[mkP("Jackie",true),mkP("Exarkie",false)],cur:0,zr:4,pin:"",give:10,sims:DEF_SIMS(),xc:{},accts:null};
 function migrate(s){
  if(!s||typeof s!="object")return s;
  if(!Array.isArray(s.p)){const o=s;s={p:[mkP("Jackie",true),mkP("Exarkie",false)],cur:0,zr:o.zr||4,pin:""};s.p[0].tx=o.tx||[];s.p[0].fz=o.fz||[];s.p[0].debts=o.debts||[]}
- if(!Array.isArray(s.sims)||!s.sims.length)s.sims=DEF_SIMS();s.sims.forEach(z=>{if(z.id=="s1"&&z.name=="Line 1")z.name="Jackie";if(z.id=="s2"&&z.name=="Line 2")z.name="Exarkie"});s.xc=s.xc||{};
- const cut=addDays(today(),-30);
+ if(!Array.isArray(s.sims)||!s.sims.length)s.sims=DEF_SIMS();s.sims.forEach(z=>{if(z.id=="s1"&&z.name=="Line 1")z.name="Jackie";if(z.id=="s2"&&z.name=="Line 2")z.name="Exarkie"});s.xc=s.xc||{};if(!Array.isArray(s.accts)||!s.accts.length)s.accts=DEF_ACCTS();s.accts.forEach(a=>{if(a.own==null)a.own=a.id=="loop"?"b":"p"});s.sims.forEach(z=>{if(z.own==null)z.own=/exarkie|business|biashara|aviva/i.test(z.name)?"b":"p"});
+ const cut=addDays(today(),-30),byName=n=>{n=String(n||"").toLowerCase();return(s.accts.find(a=>a.name.toLowerCase()==n||a.id==n)||(n=="bank"?s.accts.find(a=>a.type=="bank"):null)||{}).id};
  s.p.forEach(p=>{["tx","fz","debts","goals","bills"].forEach(k=>{if(!Array.isArray(p[k]))p[k]=[]});
   p.bud=p.bud||{};p.bud.p=p.bud.p||{};p.bud.b=p.bud.b||{};p.inc=p.inc||{p:0,b:0};p.chk=p.chk||{};p.notes=p.notes||{};p.mpw=p.mpw||{};p.fzl=p.fzl||{};
-  if(p.mpa){p.mpw[s.sims[0].id]=p.mpa;delete p.mpa}
+  if(p.mpa){p.mpw[s.sims[0].id]=p.mpa;delete p.mpa}p.acb=p.acb||{};if(p.cha){p.acb.cash=p.cha;delete p.cha}
+  p.tx.forEach(x=>{if(!x.ac&&x.m&&x.m!="M-Pesa"&&x.m!="Fuliza"){const a=byName(x.m);if(a)x.ac=a}});p.goals.forEach(g=>{if(!g.place&&g.kept){const a=byName(g.kept);if(a)g.place=a}});
   p.tx.forEach(x=>{if(x.raw&&(x.at||x.d)<cut)delete x.raw});
   p.debts.forEach(d=>{d.paid=d.paid||[];d.dir=d.dir||"out"});p.goals.forEach(g=>{g.saved=g.saved||[]})});
  if(s.give==null)s.give=10;if(s.zr==null)s.zr=4;if(!(s.cur<s.p.length))s.cur=0;return s}
@@ -194,17 +195,16 @@ let _ts=0;const nts=()=>{_ts=Math.max(Date.now(),_ts+1);return _ts};
 /* Estimated M-Pesa balance per line: last known balance plus every M-Pesa entry on that line recorded since */
 function walletBal(p,sim){sim=sim||SIM0();const w=(p.mpw||{})[sim];if(!w)return null;let v=w.v;p.tx.forEach(x=>{if((x.ts||0)<=w.ts||x.m!="M-Pesa"||simOf(x)!=sim)return;v+=x.t=="in"?x.a:-(x.a+(x.f||0)-(x.fzA||0))});return Math.round(v*100)/100}
 function walletAll(p){let t=0,k=0;S.sims.forEach(s=>{const w=walletBal(p,s.id);if(w!=null){t+=Math.max(0,w);k++}});return k?t:null}
-function cashBal(p){if(!p.cha)return null;let v=p.cha.v;p.tx.forEach(x=>{if((x.ts||0)<=p.cha.ts||x.m!="Cash")return;v+=x.t=="in"?x.a:-(x.a+(x.f||0))});return Math.round(v*100)/100}
 function bal(p){const o=p.ob||{},r={p:+o.p||0,b:+o.b||0};p.tx.forEach(x=>{if(x.t=="out"&&x.m=="Fuliza")return;const s=x.s||x.b||"p";if(r[s]==null)return;r[s]+=x.t=="in"?x.a:-(x.a+(x.f||0)-(x.fzA||0))});return r}
 function sum(a){let i=0,o=0;a.forEach(x=>x.rp?0:x.t=="in"?i+=x.a:o+=x.a+(x.f||0));return{i,o}}
 function by(a,k){const m={};a.forEach(x=>{const key=x[k]||"(not named)";m[key]=(m[key]||0)+x.a;if(x.f){const kk=k=="c"?"Transaction costs":key;m[kk]=(m[kk]||0)+x.f}});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
 const spentIn=(p,ym,kind,cat)=>p.tx.filter(x=>x.t=="out"&&!x.rp&&ymOf(x.d)==ym&&(x.b||"p")==kind&&(cat?x.c==cat:true)).reduce((s,x)=>s+x.a+(cat?0:(x.f||0)),0);
-const feesIn=a=>a.reduce((s,x)=>s+(x.f||0)+(!x.rp&&x.t=="out"&&/Fuliza fees|Transaction costs/.test(x.c)?x.a:0),0);
+const feesIn=a=>a.reduce((s,x)=>s+(x.f||0)+(x.okoa||0)*.1+(!x.rp&&x.t=="out"&&/Fuliza fees|Transaction costs/.test(x.c)?x.a:0),0);
 const goalSaved=g=>g.saved.reduce((q,y)=>q+y.a,0);
 function essentialAvg(p){const now=ymOf(today());let tot=0,n=0;for(let i=1;i<=3;i++){const ym=ymShift(now,-i);const v=p.tx.filter(x=>x.t=="out"&&!x.rp&&(x.b||"p")=="p"&&ymOf(x.d)==ym&&ESSENTIAL.includes(x.c)).reduce((s,x)=>s+x.a,0);if(v>0){tot+=v;n++}}
  if(!n){const v=p.tx.filter(x=>x.t=="out"&&!x.rp&&(x.b||"p")=="p"&&ymOf(x.d)==now&&ESSENTIAL.includes(x.c)).reduce((s,x)=>s+x.a,0);return{avg:v,n:0}}return{avg:tot/n,n}}
 function streak(p){const days=new Set(Object.keys(p.chk||{}));p.tx.forEach(x=>{if(x.at)days.add(x.at)});let d=today(),n=0;if(!days.has(d))d=addDays(d,-1);while(days.has(d)){n++;d=addDays(d,-1)}return{n,todayDone:days.has(today())}}
-function guess(who){if(!who)return null;const w=who.toLowerCase().trim();const h=P().tx.filter(x=>(x.who||"").toLowerCase().trim()==w&&!x.rp).sort((a,b)=>b.d.localeCompare(a.d))[0];return h?{c:h.c,b:h.b}:null}
+function guess(who){if(!who)return null;if(/safaricom|airtime|bundle|okoa|data plan|tunukiwa/i.test(who)&&!P().tx.some(x=>(x.who||"").toLowerCase().trim()==who.toLowerCase().trim()))return{c:"Airtime & data",b:"p"};const w=who.toLowerCase().trim();const h=P().tx.filter(x=>(x.who||"").toLowerCase().trim()==w&&!x.rp).sort((a,b)=>b.d.localeCompare(a.d))[0];return h?{c:h.c,b:h.b}:null}
 
 /* ---------- Period helpers (reports) ---------- */
 function range(o=off){const n=new Date();let s,e;
@@ -246,15 +246,16 @@ function home(){const p=P(),mo=ymOf(today()),m=p.tx.filter(x=>ymOf(x.d)==mo),t=s
  const list=p.tx.slice().sort((a,b)=>b.d.localeCompare(a.d)||(b.ts||b.id)-(a.ts||a.id)).slice(0,6);
  return`${banner()}
  <div class="card hl"><div class="row" style="border:0;padding:0"><div class="candle">${candle(st.todayDone)}<div><div class="mut">Evening check-in</div>${st.todayDone?`<b>Today is recorded ✓</b><div class="mut" style="font-style:italic">“Her candle goeth not out by night.”</div>`:`<b>Light today’s candle</b><div class="mut">Record today’s money to keep your streak.</div>`}</div></div><div><div class="streak">${st.n}</div><div class="mut" style="text-align:center">day${st.n==1?"":"s"}</div></div></div>
- ${st.todayDone?"":`<div class="btns"><button onclick="openPaste()">Paste M-Pesa messages</button><button class="g" onclick="checkIn()">Nothing else today</button></div>`}</div>
+ ${st.todayDone?"":`<div class="btns"><button onclick="openPaste()">Paste messages</button><button class="g" onclick="checkIn()">Nothing else today</button></div>`}</div>
  ${p.zf&&fzTotal(p)>0?(()=>{const ow=fzTotal(p),od=fzOpen(p)[0],daily=fzOpen(p).reduce((s,f)=>s+fee(f.a-(f.rp||0)),0)*(1+(S.fe??20)/100),days=fzCost(od).days;return`<div class="card bad" onclick="go('owe')" style="cursor:pointer"><div class="row" style="border:0;padding:0"><div><b>On Fuliza</b><div class="mut">The next ${K(Math.ceil(ow))} you receive goes to Fuliza first. Day ${days} · about ${K(daily)} a day in fees.</div></div><div class="big out" style="white-space:nowrap">${K(Math.round(ow))}</div></div></div>`})():""}
  <div class="grid"><div class="card tint"><div class="mut lbl"><span class="dot" style="background:var(--acc)"></span>Personal money</div><div class="big">${K(b.p)}</div></div><div class="card tgold"><div class="mut lbl"><span class="dot" style="background:var(--gold)"></span>Business money</div><div class="big">${K(b.b)}</div></div></div>
- ${(()=>{const w=walletAll(p),c=cashBal(p),per=multiSim()?S.sims.map(z=>{const v=walletBal(p,z.id);return`${esc(z.name)} ${v==null?"—":cmpct(Math.max(0,v))}`}).join(" · "):"";return`<div class="card" style="padding:12px 14px;cursor:pointer" onclick="openRecon()"><div class="grid" style="gap:8px"><div><div class="mut">📱 On M-Pesa</div><b>${w==null?"—":K(w)}</b>${per?`<div class="mut" style="font-size:11.5px">${per}</div>`:""}</div><div><div class="mut">💵 Cash in hand</div><b>${c==null?"—":K(c)}</b></div></div>${w==null||c==null?`<div class="mut" style="margin-top:4px">Tap to tell the app what you have now, and it will keep count.</div>`:""}</div>`})()}
+ ${moneyCard(p)}
+ ${bizCard(p)}
  <div class="grid" style="margin-top:10px"><div class="card"><div class="mut">In this month</div><div class="big in">${K(t.i)}</div></div><div class="card"><div class="mut">Out this month</div><div class="big out">${K(t.o)}</div></div>
  <div class="card"><div class="mut">Business profit this month</div><div class="big">${K(bz.i-bz.o)}</div></div><div class="card"><div class="mut">${planned?"Left in my personal plan":"Personal plan"}</div>${planned?`<div class="big ${planned-spentP<0?"out":""}">${K(planned-spentP)}</div>`:`<button class="g sm" style="margin-top:4px" onclick="go('plan')">Set up</button>`}</div></div>
  ${warn?`<h2>Watch these this month</h2><div class="card">${warn}</div>`:""}
  ${due.length?`<h2>Bills coming up</h2><div class="card">${due.map(([bl,d,late])=>`<div class="row"><div><b>${esc(bl.name)}</b><div class="mut ${late?"out":""}">${late?"Overdue · was due ":"Due "}${d}</div></div><div style="white-space:nowrap">${K(bl.a)} <button class="sm" onclick="payBill(${bl.id})">Pay</button></div></div>`).join("")}</div>`:""}
- <div class="btns" style="margin-top:14px"><button class="g" onclick="openPaste()">Paste M-Pesa</button><button class="g" onclick="openXf('wd')">Cash ↔ M-Pesa</button></div><div class="btns"><button class="g" onclick="openXf()">Personal ↔ Business</button><button class="g" onclick="openRecon()">Check balance</button></div>
+ <div class="btns" style="margin-top:14px"><button class="g" onclick="openPaste()">Paste messages</button><button class="g" onclick="openXf('mv')">Move money</button></div><div class="btns"><button class="g" onclick="openXf('pb')">Personal ↔ Business</button><button class="g" onclick="openRecon()">Check balance</button></div>
  <div class="row" style="border:0;margin-top:10px"><h2 style="margin:0">Recent</h2><button class="g sm" onclick="go('all')">See all entries</button></div>
  <div class="card" style="padding:2px 14px">${list.map(txRow).join("")||'<div class="mut" style="padding:10px 0">Nothing yet. Tap + after each payment, or paste your M-Pesa messages.</div>'}</div><button class="g" onclick="exp()">Back up my data</button>`}
 
@@ -288,22 +289,6 @@ async function delBill(id){if(await ask("Remove this bill? Past payments stay re
 function payBill(id){const bl=P().bills.find(b=>b.id==id);draft={t:"out",b:bl.b,s:bl.b,a:bl.a,who:bl.name,c:bl.c,bill:bl.id};openTx()}
 
 /* ---------- Savings ---------- */
-function savings(){const p=P(),ef=p.goals.find(g=>g.ef),ea=essentialAvg(p),months=S.efm||3;
- let efc;if(ef){const s=goalSaved(ef),cov=ea.avg>0?s/ea.avg:0;efc=`<div class="card hl"><div class="row" style="border:0;padding:0"><b>Emergency fund</b><span>${K(s)} / ${K(ef.target)}</span></div><div class="mut">${ea.avg>0?`Covers about <b>${cov.toFixed(1)} months</b> of your usual essentials (${K(ea.avg)} a month).`:"Record a month of spending to see how many months this covers."} Kept in ${esc(ef.kept||"—")}.</div><div class="track"><div class="bar" style="width:${Math.min(100,s/ef.target*100)}%;background:var(--gold)"></div></div><div class="btns"><button onclick="addSave(${ef.id})">Add</button><button class="g" onclick="addSave(${ef.id},true)">Take out</button><button class="x" style="flex:0" onclick="openGoal(1,${ef.id})">✎</button></div></div>`}
- else efc=`<div class="card hl"><b>Emergency fund</b><div class="mut">Money set aside so a hospital bill, a slow sales month or a broken phone doesn’t push you onto Fuliza. A common target is 3 to 6 months of essentials.${ea.avg>0?` Your essentials average about ${K(ea.avg)} a month, so ${months} months is ${K(Math.round(ea.avg*months))}.`:""}</div><button style="margin-top:8px" onclick="openGoal(true)">Start my emergency fund</button></div>`;
- const g=p.goals.filter(x=>!x.ef);
- return`${efc}<h2>Savings goals</h2>${g.map(x=>{const s=goalSaved(x),pc=Math.min(100,s/x.target*100),mleft=x.by?Math.max(1,Math.ceil((new Date(x.by+"T00:00")-Date.now())/2592e6)):0;
- return`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(x.name)}</b><span>${K(s)} / ${K(x.target)}</span></div><div class="mut">${x.kept?"In "+esc(x.kept)+" · ":""}${x.by?"By "+x.by+" · ":""}${pc.toFixed(0)}% there${x.by&&s<x.target?" · "+K((x.target-s)/mleft)+" a month needed":""}${s>=x.target?' · <span class="in">Reached ✓</span>':""}</div>
- <div class="track"><div class="bar" style="width:${Math.max(2,pc)}%;background:var(--in)"></div></div><div class="btns"><button onclick="addSave(${x.id})">Add</button><button class="g" onclick="addSave(${x.id},true)">Take out</button><button class="x" style="flex:0" onclick="openGoal(0,${x.id})">✎</button><button class="x" style="flex:0" onclick="delGoal(${x.id})">✕</button></div></div>`}).join("")||'<div class="mut">What are you saving for? Stock, land, school fees, a trip home…</div>'}
- <button onclick="openGoal()">New savings goal</button>
- <div class="card mut" style="margin-top:14px"><b style="color:var(--ink)">About Ziidi</b><br>Ziidi is Safaricom’s money market fund inside M-Pesa: you can put in from KSh 100, it earns interest daily, and moving money in and out is free. It is a good home for the emergency fund. The rate changes daily, so check it in the M-Pesa app.</div>`}
-function openGoal(ef,id){const ea=essentialAvg(P()),m=S.efm||3,g=id?P().goals.find(x=>x.id==id):{};openS(`<h2 style="margin-top:0">${id?"Edit "+esc(g.name):ef?"Emergency fund":"New savings goal"}</h2>${ef?"":`<label>What for?</label><input id="w" value="${esc(g.name||"")}">`}<label>Target (KSh)</label><input id="a" type="number" inputmode="decimal" value="${g.target||(ef&&ea.avg?Math.round(ea.avg*m):"")}"><label>Where the money is kept</label><select id="kp">${["Ziidi","M-Shwari","Bank","Chama","Cash","Other"].map(x=>`<option ${g.kept==x?"selected":""}>${x}</option>`).join("")}</select>${ef?"":`<label>By when (optional)</label><input id="u" type="date" value="${g.by||""}">`}${id?`<label>Saved so far (KSh)</label><input id="gs" type="number" inputmode="decimal" value="${goalSaved(g)}"><div class="mut">Changing this only changes the goal, not your entries.</div>`:""}<br><button onclick="addGoal(${ef?1:0},${id||0})">Save</button>`)}
-function addGoal(ef,id){const a=parseFloat($("a").value),w=ef?"Emergency fund":$("w").value.trim();if(!a||!w)return toast("Add a name and a target");const p=P();
- if(id){const g=p.goals.find(x=>x.id==id);g.name=w;g.target=a;g.kept=$("kp").value;if(!ef)g.by=$("u").value;const want=+$("gs").value||0,has=goalSaved(g);if(Math.abs(want-has)>=0.01)g.saved.push({a:want-has,d:today(),adj:1})}
- else p.goals.push({id:uid(),name:w,target:a,by:ef?"":$("u").value,kept:$("kp").value,ef:!!ef,saved:[]});save();closeS();render()}
-function addSave(id,out){const g=P().goals.find(x=>x.id==id);openS(`<h2 style="margin-top:0">${out?"Take out of":"Add to"} ${esc(g.name)}</h2><label>Amount</label><input id="a" type="number" inputmode="decimal"><label>${out?"Put back into":"Taken from"}</label><select id="sf"><option value="p">Personal money</option><option value="b">Business money</option><option value="">Don’t change my balances</option></select><div class="mut">Moving savings out of your everyday money lowers “Personal money now”, which is what really happened.</div><br><button onclick="doSave(${id},${out?1:0})">Save</button>`)}
-function doSave(id,out){const a=parseFloat($("a").value);if(!a)return;const p=P(),g=p.goals.find(x=>x.id==id),s=$("sf").value;const was=goalSaved(g);g.saved.push({a:out?-a:a,d:today()});
- if(s)p.tx.push({id:uid(),ts:nts(),at:today(),d:today(),t:out?"in":"out",b:s,s,rp:1,a,m:g.kept||"M-Pesa",who:(out?"From ":"To ")+g.name,c:"Savings",n:"savings goal"});save();closeS();render();if(!out&&was<g.target&&goalSaved(g)>=g.target){confetti();toast("Goal reached: "+g.name+" ✦")}}
 async function delGoal(id){if(await ask("Delete this goal? This can’t be undone.","Delete")){P().goals=P().goals.filter(g=>g.id!=id);save();render()}}
 
 /* ---------- Owing ---------- */
@@ -320,7 +305,7 @@ function owe(){const p=P(),yr=today().slice(0,4),mo=ymOf(today());
  <div class="card"><div class="row" style="border:0;padding:0"><div><b>Fuliza works automatically</b><div class="mut">${fzAuto(p)?"On: payments bigger than your M-Pesa balance are logged as Fuliza, money received pays Fuliza first, and M-Pesa’s own Fuliza messages correct the total.":"Off: log Fuliza yourself."}</div></div><button class="g sm" onclick="P().fza=!fzAuto(P());save();render()">${fzAuto(p)?"Turn off":"Turn on"}</button></div></div>
  <div class="card mut">Fuliza costs a one-off 1% access fee, then a daily fee set by how much you owe (KSh 0 up to KSh 25 a day, plus 20% excise). Up to KSh 1,000 is free of daily fees for 3 days. <b>Repay before midnight and you pay only the 1%.</b> Daily fees here are estimates; *234# has the exact figure.</div>
  ${done.length?`<h2>Repaid Fuliza</h2><div class="card" style="padding:4px 14px">${done.map(f=>`<div class="row" style="cursor:pointer" onclick="if(!event.target.closest('button'))openFz(${f.id})"><div><b>${K(f.a)}</b> <span class="mut">${f.d} → ${f.dd||"?"}${multiSim()?" · "+esc(simName(simOf(f))):""}${f.cor?" · correction":""}</span><div class="mut">Fees ${K(f.cost||f.fp||0)}</div></div><div style="white-space:nowrap"><button class="x" onclick="openFz(${f.id})">✎</button> <button class="x" onclick="delFz(${f.id})">✕</button></div></div>`).join("")}</div>`:""}`:"";
- const dl=dir=>p.debts.filter(d=>d.dir==dir).map(d=>{const pd=d.paid.reduce((s,x)=>s+x.a,0),l=d.a-pd;return`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(d.who)}</b><span class="${dir=="out"?"out":"in"}">${K(l)} left</span></div><div class="mut">${dir=="out"?"Borrowed":"Lent / sold on credit"} ${K(d.a)} · ${dir=="out"?"paid":"received"} ${K(pd)}${d.due?" · due "+d.due:""}${d.due&&l>0&&d.due<today()?' · <span class="out">overdue</span>':""}</div><div class="track"><div class="bar" style="width:${Math.min(100,pd/d.a*100)}%;background:var(--in)"></div></div><div class="btns">${l>0?`<button onclick="payDebt(${d.id})">${dir=="out"?"Make a payment":"Record money received"}</button>`:'<span class="in" style="align-self:center">Cleared ✓</span>'}<button class="x" style="flex:0" onclick="openDebt('${dir}',${d.id})">✎</button><button class="x" style="flex:0" onclick="delDebt(${d.id})">✕</button></div></div>`}).join("");
+ const dl=dir=>p.debts.filter(d=>d.dir==dir).map(d=>{const pd=d.paid.reduce((s,x)=>s+x.a,0),l=d.a-pd;return`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(d.who)}</b><span class="${dir=="out"?"out":"in"}">${K(l)} left</span></div><div class="mut">${dir=="out"?"Borrowed":"Lent / sold on credit"} ${K(d.a)} · ${dir=="out"?"paid":"received"} ${K(pd)}${d.due?" · due "+d.due:""}${d.due&&l>0&&d.due<today()?' · <span class="out">overdue</span>':""}${dir=="out"&&l>0&&(d.mc||d.mp)?`<br>${d.mc?`Costs about <b class="out">${K(d.mc)}</b> a month in interest and fees`:""}${d.mc&&d.mp?" · ":""}${d.mp?(d.mp>(d.mc||0)?`at ${K(d.mp)} a month, cleared in about <b>${Math.ceil(l/(d.mp-(d.mc||0)))} months</b>`:`<span class="out">${K(d.mp)} a month doesn’t cover the interest</span>`):""}`:""}</div><div class="track"><div class="bar" style="width:${Math.min(100,pd/d.a*100)}%;background:var(--in)"></div></div><div class="btns">${l>0?`<button onclick="payDebt(${d.id})">${dir=="out"?"Make a payment":"Record money received"}</button>`:'<span class="in" style="align-self:center">Cleared ✓</span>'}<button class="x" style="flex:0" onclick="openDebt('${dir}',${d.id})">✎</button><button class="x" style="flex:0" onclick="delDebt(${d.id})">✕</button></div></div>`}).join("");
  const tO=p.debts.filter(d=>d.dir=="out").reduce((s,d)=>s+d.a-d.paid.reduce((q,x)=>q+x.a,0),0),tI=p.debts.filter(d=>d.dir=="in").reduce((s,d)=>s+d.a-d.paid.reduce((q,x)=>q+x.a,0),0);
  return`<div class="grid"><div class="card"><div class="mut">I owe</div><div class="big out">${K(tO+fzTotal(p))}</div></div><div class="card"><div class="mut">Owed to me</div><div class="big in">${K(tI)}</div></div></div>${fzPart}
  <h2>Debts I owe</h2>${dl("out")||'<div class="mut">None recorded.</div>'}<button onclick="openDebt('out')">Add a debt I owe</button>
@@ -345,10 +330,14 @@ function fzOk(id){const p=P(),f=p.fz.find(x=>x.id==id),fees=parseFloat($("a").va
  if(feeLeft>0){f.fp=(f.fp||0)+feeLeft;p.tx.push({id:uid(),ts:nts(),at:today(),d,t:"out",b:f.b||"p",s,a:feeLeft,m:"M-Pesa",sim,who:"Fuliza fees",c:"Fuliza fees",n:"Fuliza",fzid:f.id,fzk:"fp",lk})}
  if(pr>0){f.rp=(f.rp||0)+pr;p.tx.push({id:uid(),ts:nts(),at:today(),d,t:"out",b:f.b||"p",s,rp:1,a:pr,m:"M-Pesa",sim,who:"Fuliza repayment",c:"Fuliza repayment",n:"repaid",fzid:f.id,fzk:"rp",lk})}
  f.done=true;f.dd=d;f.cost=f.fp||0;save();closeS();render()}
-function openDebt(dir,id){const d=id?P().debts.find(x=>x.id==id):{paid:[]};openS(`<h2 style="margin-top:0">${id?"Edit":dir=="out"?"New debt I owe":"Money owed to me"}</h2><label>${dir=="out"?"Owed to":"Who owes me"}</label><input id="w" value="${esc(d.who||"")}"><label>Amount</label><input id="a" type="number" inputmode="decimal" value="${d.a||""}"><label>Due date (optional)</label><input id="u" type="date" value="${d.due||""}">${id?`<label>Already ${dir=="out"?"paid":"received"} (KSh)</label><input id="pdx" type="number" inputmode="decimal" value="${d.paid.reduce((s,x)=>s+x.a,0)}"><div class="mut">Changing this only changes the record here, not your entries.</div>`:""}<br><button onclick="addDebt('${dir}',${id||0})">Save</button>`)}
-function addDebt(dir,id){const a=parseFloat($("a").value),w=$("w").value.trim();if(!a||!w)return toast("Add a name and an amount");const p=P();if(id){const d=p.debts.find(x=>x.id==id);d.who=w;d.a=a;d.due=$("u").value;const want=+$("pdx").value||0,has=d.paid.reduce((s,x)=>s+x.a,0);if(Math.abs(want-has)>=0.01)d.paid.push({a:want-has,d:today(),adj:1})}else p.debts.push({id:uid(),dir,who:w,a,due:$("u").value,paid:[]});save();closeS();render()}
-function payDebt(id){const d=P().debts.find(x=>x.id==id),o=d.dir=="out";openS(`<h2 style="margin-top:0">${o?"Pay":"Received from"} ${esc(d.who)}</h2><label>Amount</label><input id="a" type="number" inputmode="decimal"><label>How</label><select id="m">${METH().filter(x=>x!="Fuliza").map(x=>`<option>${x}</option>`).join("")}</select><label>${o?"Paid from":"Goes into"}</label><select id="ds"><option value="p">Personal money</option><option value="b">Business money</option></select><br><button onclick="doPay(${id})">Save</button>`)}
-function doPay(id){const a=parseFloat($("a").value);if(!a)return;const p=P(),d=p.debts.find(x=>x.id==id),s=$("ds").value,o=d.dir=="out";d.paid.push({a,d:today()});p.tx.push({id:uid(),ts:nts(),at:today(),d:today(),t:o?"out":"in",b:s,s,a,m:$("m").value,who:d.who,c:o?"Other":(s=="b"?"Customer payment":"Other"),n:o?"debt payment":"debt repaid to me",rp:o?1:0});save();closeS();render()}
+function openDebt(dir,id){const d=id?P().debts.find(x=>x.id==id):{paid:[]};openS(`<h2 style="margin-top:0">${id?"Edit":dir=="out"?"New debt or loan I owe":"Money owed to me"}</h2><label>${dir=="out"?"Owed to (e.g. Equity loan)":"Who owes me"}</label><input id="w" value="${esc(d.who||"")}"><label>Amount ${id?"":"borrowed"}</label><input id="a" type="number" inputmode="decimal" value="${d.a||""}"><label>Due date (optional)</label><input id="u" type="date" value="${d.due||""}">
+ ${dir=="out"?`<label>Interest and fees per month (KSh, optional)</label><input id="mc" type="number" inputmode="decimal" value="${d.mc||""}" placeholder="from your loan statement"><label>What I can pay each month (KSh, optional)</label><input id="mpy" type="number" inputmode="decimal" value="${d.mp||""}">`:""}
+ ${id?`<label>Already ${dir=="out"?"paid":"received"} (KSh)</label><input id="pdx" type="number" inputmode="decimal" value="${d.paid.reduce((s,x)=>s+x.a,0)}"><div class="mut">Changing this only changes the record here, not your entries.</div>`:""}<br><button onclick="addDebt('${dir}',${id||0})">Save</button>`)}
+function addDebt(dir,id){const a=parseFloat($("a").value),w=$("w").value.trim();if(!a||!w)return toast("Add a name and an amount");const p=P(),ex={mc:$("mc")?+$("mc").value||0:0,mp:$("mpy")?+$("mpy").value||0:0};
+ if(id){const d=p.debts.find(x=>x.id==id);Object.assign(d,{who:w,a,due:$("u").value},ex);const want=+$("pdx").value||0,has=d.paid.reduce((s,x)=>s+x.a,0);if(Math.abs(want-has)>=0.01)d.paid.push({a:want-has,d:today(),adj:1})}else p.debts.push(Object.assign({id:uid(),dir,who:w,a,due:$("u").value,paid:[]},ex));save();closeS();render()}
+function payDebt(id){const d=P().debts.find(x=>x.id==id),o=d.dir=="out";openS(`<h2 style="margin-top:0">${o?"Pay":"Received from"} ${esc(d.who)}</h2><label>Amount</label><input id="a" type="number" inputmode="decimal" value="${o&&d.mp?d.mp:""}"><label>${o?"Paid with":"Came into"}</label><select id="m">${PAYW().filter(([v])=>v!="Fuliza").map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}</select>${multiSim()?`<label>Line (if M-Pesa)</label><select id="dsim">${S.sims.map(z=>`<option value="${z.id}" ${z.id==simHere()?"selected":""}>${esc(z.name)}</option>`).join("")}</select>`:""}<label>Charges (KSh, optional)</label><input id="df" type="number" inputmode="decimal"><label>${o?"Paid from":"Goes into"}</label><select id="ds"><option value="p">Personal money</option><option value="b">Business money</option></select><br><button onclick="doPay(${id})">Save</button>`)}
+function doPay(id){const a=parseFloat($("a").value);if(!a)return;const p=P(),d=p.debts.find(x=>x.id==id),s2=$("ds").value,o=d.dir=="out",pw=$("m").value,L=pw=="M-Pesa"?{m:"M-Pesa",sim:$("dsim")?$("dsim").value:simHere()}:legFields(pw);
+ const x=Object.assign({id:uid(),ts:nts(),at:today(),d:today(),t:o?"out":"in",b:s2,s:s2,a,f:parseFloat($("df").value)||0,who:d.who,c:o?"Loan repayment":(s2=="b"?"Customer payment":"Other"),n:o?"loan/debt payment":"debt repaid to me"},L);if(o)x.loan=d.id;p.tx.push(x);if(o)loanLink(p,x);else d.paid.push({a,d:today(),tx:x.id});save();closeS();render();if(d.a-d.paid.reduce((q,e)=>q+e.a,0)<=0.5){confetti();toast(d.who+" cleared ✦")}}
 async function delDebt(id){if(await ask("Delete this record? Payments already made stay in your history.","Delete")){P().debts=P().debts.filter(d=>d.id!=id);save();render()}}
 
 /* ---------- Reports ---------- */
@@ -394,13 +383,15 @@ function rep(){const p=P(),r=range(),pr0=range(off-1),a=p.tx.filter(x=>inR(x,r))
  ${fzBlock}
  <div class="sect">Personal and business</div><div class="grid"><div class="card"><b>Personal</b><div class="row"><span class="mut">In</span><span>${cmpct(ps.i)}</span></div><div class="row"><span class="mut">Out</span><span>${cmpct(ps.o)}</span></div><div class="row"><span class="mut">Kept</span><b>${cmpct(ps.i-ps.o)}</b></div></div>
  <div class="card"><b>Business</b><div class="row"><span class="mut">Sales</span><span>${cmpct(bz.i)}</span></div><div class="row"><span class="mut">Costs</span><span>${cmpct(bz.o)}</span></div><div class="row"><span class="mut">Profit${bz.i?" · "+((bz.i-bz.o)/bz.i*100).toFixed(0)+"%":""}</span><b>${cmpct(bz.i-bz.o)}</b></div></div></div>
+ ${(()=>{const dOut=a.filter(x=>x.t=="out"&&!x.rp&&x.c=="Delivery"),dPaid=dOut.reduce((q,x)=>q+x.a+(x.f||0),0),dIn=a.filter(x=>x.t=="in"&&!x.rp).reduce((q,x)=>q+(x.dlv||0)+(x.c=="Delivery fee (from client)"?x.a:0),0),unpaid=dOut.filter(x=>!x.cp);if(!dPaid&&!dIn)return"";return`<div class="card"><b>🚚 Delivery</b><div class="row"><span class="mut">Clients paid you for delivery</span><span class="in">${K(dIn)}</span></div><div class="row"><span class="mut">You paid riders</span><span class="out">${K(dPaid)}</span></div><div class="row"><span class="mut">${dIn>=dPaid?"Delivery made you":"Delivery cost you"}</span><b class="${dIn>=dPaid?"in":"out"}">${K(Math.abs(dIn-dPaid))}</b></div>${unpaid.length?`<div class="mut">${unpaid.length} deliver${unpaid.length==1?"y":"ies"} (${K(unpaid.reduce((q,x)=>q+x.a,0))}) not marked as paid by the client.</div>`:""}</div>`})()}
  ${cx("b","p")||cx("p","b")?`<div class="card"><div class="row"><span>Business money spent on personal things</span><b class="out">${K(cx("b","p"))}</b></div><div class="row"><span>Personal money spent on business</span><b>${K(cx("p","b"))}</b></div></div>`:""}
  <div class="sect">Giving and saving</div><div class="grid"><div class="card"><div class="mut">Given</div><div class="tile v gold">${K(giving)}</div><div class="mut">${ps.i?(giving/ps.i*100).toFixed(1)+"% of personal income":""}</div></div><div class="card"><div class="mut">Moved to savings</div><div class="tile v in">${K(saved)}</div><div class="mut">${ps.i?(saved/ps.i*100).toFixed(1)+"% of personal income":""}</div></div></div>
  ${per=="month"?`<div class="card hl" style="margin-top:16px"><b>Her works praise her</b> <span class="mut">monthly review</span><div style="margin-top:6px">${t.i||t.o?`You brought in ${K(t.i)} and spent ${K(t.o)}${t.i?`, keeping <b class="${kept<0?"out":"in"}">${K(kept)}</b>`:""}. ${giving?`You gave ${K(giving)}. `:""}${saved?`You moved ${K(saved)} into savings. `:""}${top?`Most went to <b>${esc(top[0])}</b> (${K(top[1])}). `:""}${fees?`Fees took ${K(fees)}: paying tills (Buy Goods) instead of Send Money is free for you. `:""}${bz.i||bz.o?`The business made ${K(bz.i-bz.o)} profit.`:""}`:"Nothing recorded this month yet."}</div>
  <label>My reflection: what went well, what will I change?</label><textarea onchange="P().notes['${ym}']=this.value;save()">${esc(p.notes[ym]||"")}</textarea></div>`:""}
+ ${(()=>{const ok=a.filter(x=>x.okoa).reduce((q,x)=>q+x.okoa,0),air=out.filter(x=>x.c=="Airtime & data").reduce((q,x)=>q+x.a,0),pay=per=="month"?ownPayIn(p,ym):0;return(air||ok||pay)?`<div class="grid" style="margin-top:12px">${pay||S.ownPay?`<div class="card"><div class="mut">Paid myself from the business</div><div class="v ${S.ownPay&&pay>S.ownPay?"out":""}">${K(pay)}</div>${S.ownPay?`<div class="mut">of ${K(S.ownPay)} planned</div>`:""}</div>`:""}${air?`<div class="card"><div class="mut">Airtime & data</div><div class="v">${K(air)}</div>${ok?`<div class="mut">Okoa repaid ${K(ok)} · fee about <b class="out">${K(Math.round(ok*.1))}</b></div>`:""}</div>`:""}</div>`:""})()}
  <div class="sect">Who I paid most</div><div class="card">${hbars(by(out,"who").slice(0,5))}</div>
  <div class="sect">Who sent me money</div><div class="card">${hbars(by(a.filter(x=>x.t=="in"&&!x.rp),"who").slice(0,5),{c:"var(--s3)"})}</div>
- <button class="g" onclick="csv()">Copy as spreadsheet (CSV)</button>`}
+ <div class="btns"><button class="g" onclick="bizCsv()">Business entries for Bethlehem</button><button class="g" onclick="csv()">Everything as CSV</button></div>`}
 /* Tooltips for charts: hover on desktop, tap on phone */
 (function(){const vt=()=>$("vt");function show(e){const el=e.target.closest&&e.target.closest("[data-tip]");if(!el){vt().style.display="none";return}vt().innerHTML=el.dataset.tip;vt().style.display="block";const w=vt().offsetWidth,x=Math.min(innerWidth-w-8,Math.max(8,e.clientX-w/2)),y=Math.max(8,e.clientY-vt().offsetHeight-14);vt().style.left=x+"px";vt().style.top=y+"px"}
  document.addEventListener("pointermove",e=>{if(e.pointerType=="mouse")show(e)});document.addEventListener("pointerdown",show);document.addEventListener("scroll",()=>vt().style.display="none",true)})();
@@ -430,28 +421,6 @@ function allView(){const p=P(),cut=addDays(today(),-allN),qq=q2.toLowerCase().tr
  <div class="mut" style="margin-top:12px">Tap any entry to change it. Entries never delete themselves, because your reports and balances need them; this list shows the last ${allN} days to keep it short, and search finds everything. The original M-Pesa message text is kept for 30 days, then cleared to save space.</div>`}
 
 /* ---------- Add / edit a transaction ---------- */
-function openTx(){if(!draft.sim&&!draft.id)draft.sim=simHere();const p=P(),d=draft,inn=d.t=="in",mp=(d.m||"M-Pesa")=="M-Pesa",old=d.id?p.tx.find(y=>y.id==d.id):null,sim=d.sim||SIM0();
- const linkedR=old&&inn&&old.lk?p.tx.filter(y=>y.lk==old.lk&&y.fzid).reduce((s,y)=>s+y.a,0):0;
- const showR=inn&&mp&&p.zf&&(fzTotal(p,sim)>0.5||linkedR>0),showA=!inn&&mp&&p.zf;
- openS(`<h2 style="margin-top:0">${d.id?"Edit entry":inn?"Money received":"Money paid"}</h2>
- <div class="seg"><button class="${!inn?"on":""}" onclick="keep('t','out')">Paid</button><button class="${inn?"on":""}" onclick="keep('t','in')">Received</button></div>
- <label>${inn?"Goes into":"What it was for"}</label><div class="seg"><button class="${d.b!="b"?"on":""}" onclick="keep('b','p')">Personal</button><button class="${d.b=="b"?"on":""}" onclick="keep('b','b')">Business</button></div>
- ${!inn?`<label>Paid from</label><div class="seg"><button class="${(d.s||d.b||"p")!="b"?"on":""}" onclick="keep('s','p')">Personal money</button><button class="${(d.s||d.b)=="b"?"on":""}" onclick="keep('s','b')">Business money</button></div>`:""}
- <label>Amount (KSh)</label><input id="a" type="number" inputmode="decimal" value="${d.a||""}" oninput="autoFee();fzHints()">
- <label>${inn?"From whom (person or business)":"Paid to"}</label><input id="w" value="${esc(d.who)}" onchange="autoCat()">
- <label>Category</label>${catSelect("c",d.b,inn,d.c)}
- <label>What was it for? (optional)</label><input id="n" value="${esc(d.n)}" placeholder="${d.b=="b"?(inn?"e.g. 3 pairs, order for Wanjiku":"e.g. delivery to Ruaka"):"e.g. groceries for the week"}">
- <label>Date</label><input id="dt" type="date" value="${d.d||today()}">
- <label>How</label><select id="m" onchange="keep('m',this.value)">${METH().concat(d.m&&!METH().includes(d.m)?[d.m]:[]).map(x=>`<option ${d.m==x?"selected":""}>${x}</option>`).join("")}</select>
- ${mp&&multiSim()?`<label>Line (SIM)</label><div class="seg">${S.sims.map(s=>`<button class="${sim==s.id?"on":""}" onclick="keep('sim','${s.id}')">${esc(s.name)}</button>`).join("")}</div>`:""}
- ${!inn&&mp?`<label>M-Pesa type (to estimate the charge)</label><select id="mt" onchange="autoFee(1)">${[["send","Send money"],["till","Buy Goods / till (free for you)"],["paybill","Paybill"],["wd","Withdraw at agent"]].map(([k,l])=>`<option value="${k}" ${d.mt==k?"selected":""}>${l}</option>`).join("")}</select>`:""}
- <label>Transaction cost (optional)</label><input id="f" type="number" inputmode="decimal" value="${d.f||""}" oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fh"></div>
- ${showR?`<div class="card bad"><b>M-Pesa takes Fuliza first</b><div class="mut">${fzTotal(p,sim)>0.5?`You owe Fuliza about ${K(fzTotal(p,sim))}${multiSim()?" on "+esc(simName(sim)):""}. Fees are cleared first, then what you borrowed.`:"Part of this money went to Fuliza."}</div><label>Amount of this taken for Fuliza (KSh)</label><input id="fzR" type="number" inputmode="decimal" value="${d.fzR??(old?linkedR||"":"")}" ${old||d.fzR!=null?'data-man="1"':""} oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fzRh"></div></div>`:""}
- ${showA?`<label>Part covered by Fuliza (KSh)</label><input id="fzA" type="number" inputmode="decimal" value="${d.fzA??""}" ${old||d.fzA!=null?'data-man="1"':""} oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fzAh"></div>`:""}
- ${old&&old.raw?`<details style="margin-top:10px"><summary class="mut">Original M-Pesa message</summary><div class="mut" style="white-space:pre-wrap;margin-top:6px">${esc(old.raw)}</div></details>`:""}
- <br><button onclick="addTx()">Save</button>${d.id?`<button class="g" style="margin-top:8px" onclick="const i=${d.id};closeS();del(i)">Delete this entry</button>`:""}`);fzHints()}
-function grab(){if(!$("a"))return;draft.a=$("a").value;draft.who=$("w").value;draft.m=$("m").value;draft.f=$("f").value;draft.d=$("dt").value;const c=$("c").value;if(c!="__new")draft.c=c;draft.n=$("n").value;if($("mt"))draft.mt=$("mt").value;if($("fzA")&&$("fzA").dataset.man)draft.fzA=$("fzA").value;if($("fzR")&&$("fzR").dataset.man)draft.fzR=$("fzR").value}
-function keep(k,v){grab();draft[k]=v;if((k=="t"||k=="b")&&!catsFor(draft.b,draft.t=="in").includes(draft.c))draft.c="";if(k=="b"&&!draft.sx)draft.s=v;if(k=="s")draft.sx=1;openTx()}
 function autoCat(){const g=guess($("w").value);if(g&&draft.t=="out"){const c=$("c");if([...c.options].some(o=>o.value==g.c)){c.value=g.c;$("fh").textContent="Category filled from the last time you paid them."}}}
 function autoFee(force){const f=$("f"),mt=$("mt");if(!f||!mt||(f.dataset.man&&!force))return;const a=+$("a").value||0,k=mt.value;if(!a){f.value="";return}
  const v=k=="till"?0:k=="wd"?band(WD,a):band(SEND,a);f.value=v||"";delete f.dataset.man;fzHints();$("fh").textContent=k=="till"?"Paying a till is free for you.":k=="paybill"?`Estimate ${K(v)}; some paybills charge less. Check your message.`:`Estimated M-Pesa charge ${K(v)}. Check your message.`}
@@ -460,76 +429,16 @@ function fzShort(p,a,f,sim){const w=walletBal(p,sim);if(w==null)return null;let 
 function fzHints(){const p=P(),a=+($("a")||{}).value||0,f=+($("f")||{}).value||0,A=$("fzA"),R=$("fzR"),sim=draft.sim||SIM0();
  if(A){const w=walletBal(p,sim),sh=fzShort(p,a,f,sim),lim=fzLimit(p,sim);if(!A.dataset.man)A.value=sh?sh:"";$("fzAh").textContent=draft.id?"Change this if the Fuliza part was different.":sh==null?"Tell the app your M-Pesa balance once (Home → Check balance) and it will work this out by itself. Until then, type the Fuliza amount from the message, or leave it empty.":`Your M-Pesa${multiSim()?" ("+simName(sim)+")":""} has about ${K(Math.max(0,w))}${sh?`, so Fuliza covers ${K(sh)}.`:", so no Fuliza needed."}${lim?` Fuliza available: ${K(Math.max(0,lim-fzTotal(p,sim)))}.`:""}`}
  if(R){const ow=fzTotal(p,sim),v=Math.min(a,Math.round(ow*100)/100);if(!R.dataset.man)R.value=a&&v?v:"";$("fzRh").textContent=draft.id?"Change this if a different amount went to Fuliza.":a?(a>ow?`Fuliza cleared ✓ ${K(a-ow)} stays in M-Pesa.`:`All of it goes to Fuliza. About ${K(ow-a)} still owed after this.`):""}}
-function addTx(){const a=parseFloat($("a").value);if(!a)return toast("Enter an amount");const p=P(),m=$("m").value,old=draft.id?p.tx.find(y=>y.id==draft.id):null,sim=m=="M-Pesa"?(draft.sim||SIM0()):undefined;
- const c=$("c").value=="__new"?"Other":$("c").value;
- const x={id:draft.id||uid(),ts:old?.ts||nts(),at:old?.at||today(),d:$("dt").value||today(),t:draft.t,b:draft.b,a,m,who:$("w").value.trim(),c,n:$("n").value.trim(),f:parseFloat($("f").value)||0,s:draft.t=="in"?draft.b:(draft.s||draft.b||"p")};
- if(sim)x.sim=sim;
- ["code","bill","lk","rp","mt","fzid","fzk","raw"].forEach(k=>{const v=old&&old[k]!=null?old[k]:draft[k];if(v!=null&&v!=="")x[k]=v});if($("mt"))x.mt=$("mt").value;
- if(old)p.tx=p.tx.filter(y=>y.id!=old.id);
- if(m=="Ziidi"&&x.t=="out"&&S.zr>0)x.cb=a*S.zr/100;
- let msg="Saved";
- /* Fuliza that covered part of a payment */
- const lf=old?p.fz.find(f=>f.src==old.id):null;
- if(x.t=="out"&&$("fzA")){const v=Math.min(a+x.f,Math.max(0,+$("fzA").value||0));
-  if(v>0){x.fzA=v;if(lf){lf.a=Math.max(v,lf.rp||0);lf.sim=sim;lf.b=x.b;lf.d=x.d}else p.fz.push({id:uid(),sim,d:x.d,a:v,b:x.b,done:false,src:x.id});if(!old||!old.fzA)msg=`Saved. ${K(v)} logged as Fuliza.`}
-  else if(lf){if(lf.rp||lf.fp){lf.a=lf.rp||0;lf.done=true;lf.dd=lf.dd||today();lf.cost=lf.fp||0}else p.fz=p.fz.filter(f=>f!==lf)}}
- else if(old&&old.fzA&&x.t=="out")x.fzA=old.fzA;
- p.tx.push(x);
- /* Money received: part taken for Fuliza */
- if(x.t=="in"&&$("fzR")){const want=Math.min(a,Math.max(0,+$("fzR").value||0)),prev=old&&old.lk?p.tx.filter(y=>y.lk==old.lk&&y.fzid):[],had=prev.reduce((s,y)=>s+y.a,0);
-  if(Math.abs(want-had)>=0.01){prev.forEach(y=>fzApply(p,y,-1));const ids=new Set(prev.map(y=>y.id));p.tx=p.tx.filter(y=>!ids.has(y.id));if(want>0){x.lk=x.lk||uid();const used=repayFz(p,want,x.d,x.b,x.lk,undefined,sim,old?x.ts:0);msg=fzTotal(p,sim)<0.5?"Fuliza cleared ✦":`Saved. ${K(used)} went to Fuliza.`}}}
- if(m=="Fuliza"&&x.t=="out"&&!old)p.fz.push({id:uid(),sim:SIM0(),d:x.d,a,b:x.b,done:false,src:x.id});
- draft={t:"out",b:"p"};save();closeS();render();if(msg=="Fuliza cleared ✦")confetti();toast(msg)}
 function edit(id){const x=P().tx.find(y=>y.id==id);if(!x)return;
  if(x.c=="Transfer")return tell("This is one side of a move of your money. To change it, delete it (both sides go together) and record it again.");
  if(x.fzid)return tell("This Fuliza amount was worked out from money you received. To change it, open that money-received entry and change “taken for Fuliza”, or fix the total in Owing → Fuliza → Fix amount.");
  draft=Object.assign({},x);draft.sx=1;draft.s=draft.s||draft.b||"p";openTx()}
-async function del(id){const p=P(),x=p.tx.find(y=>y.id==id);if(!x)return;const grp=x.lk?p.tx.filter(y=>y.lk==x.lk):[x];
- const fzs=p.fz.filter(f=>grp.some(y=>y.id==f.src)&&!(f.rp||f.fp));
- const msg=x.c=="Transfer"?"Delete this move (both sides)?":grp.some(y=>y.fzid)?"Delete this entry and the Fuliza repayment that came with it?":fzs.length?"Delete this entry and the Fuliza logged with it?":"Delete this entry?";
- if(!await ask(msg+" You can undo it in Settings.","Delete"))return;
- grp.forEach(y=>fzApply(p,y,-1));const fids=new Set(fzs.map(f=>f.id));p.fz=p.fz.filter(f=>!fids.has(f.id));
- lastDel={pi:S.cur,xs:grp,fz:fzs};const ids=new Set(grp.map(y=>y.id));p.tx=p.tx.filter(y=>!ids.has(y.id));save();render();toast("Deleted. Undo is in Settings.")}
-function undoDel(){if(!lastDel)return tell("Nothing to undo.");const p=S.p[lastDel.pi],xs=lastDel.xs||[lastDel.x];p.fz.push(...(lastDel.fz||[]));xs.forEach(y=>fzApply(p,y,1));p.tx.push(...xs);lastDel=null;save();closeS();render();toast("Restored")}
-
 /* ---------- Paste M-Pesa messages (one or many) ---------- */
-function openPaste(){openS(`<h2 style="margin-top:0">Paste M-Pesa messages</h2><div class="mut">Copy the day’s M-Pesa messages and paste them here, one after another, in any order. Next you’ll choose the line, personal or business, and what each one was for. Messages you already added are skipped.</div><textarea id="sms" style="height:170px;margin-top:8px" placeholder="QK12AB34CD Confirmed. Ksh500.00 sent to JANE WANJIRU 0712345678 on 7/11/26 at 6:15 PM..."></textarea><br><button onclick="readSms()">Read messages</button>`);setTimeout(()=>$("sms")?.focus(),50)}
+function openPaste(){openS(`<h2 style="margin-top:0">Paste messages</h2><div class="mut">Copy the day’s M-Pesa and bank messages (Loop, Equity, KCB…) and paste them here, one after another, in any order. Leave an empty line between bank messages. Next you’ll choose the line, personal or business, and what each one was for. Messages you already added are skipped.</div><textarea id="sms" style="height:170px;margin-top:8px" placeholder="QK12AB34CD Confirmed. Ksh500.00 sent to JANE WANJIRU 0712345678 on 7/11/26 at 6:15 PM..."></textarea><br><button onclick="readSms()">Read messages</button>`);setTimeout(()=>$("sms")?.focus(),50)}
 const num=s=>parseFloat(String(s).replace(/,/g,""));
-function parseOne(t){const amt=t.match(/Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(!amt)return null;
- const r={a:num(amt[1]),t:"out",b:"p",m:"M-Pesa",who:"",f:0,d:today(),raw:t.slice(0,600),code:(t.match(/\b([A-Z0-9]{10})\b\s*Confirmed/)||[])[1]||""};
- const cost=t.match(/transaction cost,?\s*Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(cost)r.f=num(cost[1]);
- const dt=t.match(/on\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);if(dt){let y=+dt[3];if(y<100)y+=2000;r.d=`${y}-${String(dt[2]).padStart(2,"0")}-${String(dt[1]).padStart(2,"0")}`}else r.nod=1;
- const tm=t.match(/at\s+(\d{1,2}):(\d{2})\s*([AP]M)?/i);if(tm){let h=+tm[1];if(tm[3]){h=h%12;if(/p/i.test(tm[3]))h+=12}r.tmin=h*60+ +tm[2]}
- const nb=t.match(/new M-?PESA balance is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(nb)r.nb=num(nb[1]);
- const tot=t.match(/outstanding amount is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(tot)r.fzTot=num(tot[1]);
- const av=t.match(/available Fuliza M-?PESA limit is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(av)r.avail=num(av[1]);
- let w;
- if(/fuliza m-?pesa amount is/i.test(t)&&!/sent to|paid to/i.test(t)){const fa=t.match(/fuliza m-?pesa amount is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i),ac=t.match(/access fee charged,?\s*Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);r.kind="fz";r.a=num(fa[1]);if(ac)r.acc=num(ac[1]);r.who="Fuliza";return r}
- if(/used to (fully |partially )?(re)?pay/i.test(t)&&/fuliza/i.test(t)){r.kind="fzr";r.full=/fully/i.test(t);r.who="Fuliza repayment";return r}
- if(/you have received|received Ksh/i.test(t)){r.t="in";w=t.match(/from\s+(.+?)(?:\s+\+?\d{9,12}|\s+on\s|\.\s|$)/i);r.c="From a person"}
- else if(/withdraw/i.test(t)){r.kind="wd";w=t.match(/from\s+\d*\s*-?\s*(.+?)(?:\s+on\s|\s+New|\.\s|$)/i);r.mt="wd"}
- else if(/paid to/i.test(t)){w=t.match(/paid to\s+(.+?)\.?\s+(?:on\s|for account)/i);r.mt="till"}
- else if(/sent to/i.test(t)){w=t.match(/sent to\s+(.+?)(?:\s+for account|\s+\+?\d{9,12}|\s+on\s)/i);r.mt=/for account/i.test(t)?"paybill":"send"}
- else if(/airtime/i.test(t)){r.who="Airtime";r.c="Airtime & data"}
- if(w)r.who=w[1].trim().replace(/\s+/g," ");return r}
-function parseSms(t){const parts=t.split(/(?=\b[A-Z0-9]{10}\s+Confirmed)|(?=Confirmed\.?\s*Fuliza)|(?=Ksh\.?\s?[\d,.]+\s+from your M-?PESA has been used)/i).map(s=>s.trim()).filter(s=>/Ksh/i.test(s));return parts.map(parseOne).filter(Boolean)}
 let pend=[],pendSim=null;
-function readSms(){const p=P(),rs=parseSms($("sms").value);if(!rs.length)return tell("I couldn’t find an amount in that. Make sure you copied the whole M-Pesa message.");
- const codes=new Set(p.tx.map(x=>x.code).filter(Boolean)),seen=new Set();
- rs.forEach(r=>{r.dup=!!(r.code&&(codes.has(r.code)||seen.has(r.code)));if(r.code)seen.add(r.code);const g=guess(r.who);if(g&&r.t=="out"&&!r.kind){r.c=g.c;r.b=g.b||"p"}if(!r.c)r.c=r.t=="in"?"From a person":"Other";r.on=!r.dup});
- /* A Fuliza message belongs to the payment (or money received) right next to it */
- const near=(i,ok)=>{for(const j of[i-1,i+1,i-2,i+2]){const q=rs[j];if(q&&!q.kind&&ok(q))return q}return null};
- rs.forEach((r,i)=>{if(r.kind=="fz"){const q=near(i,q=>q.t=="out"&&q.fzL==null&&(q.nb==null||q.nb<1)&&q.a+q.f>=r.a-1);if(q){q.fzL=r.a;q.fzAcc=r.acc;if(r.fzTot!=null)q.fzTot=r.fzTot;r.hide=1;r.par=q}}
-  if(r.kind=="fzr"){const q=near(i,q=>q.t=="in"&&q.fzRL==null);if(q){q.fzRL=r.a;if(r.full)q.fzFull=1;if(r.avail!=null)q.fzAvail=r.avail;r.hide=1;r.par=q}}});
- /* Put everything in time order: people often paste newest first */
- const base=r=>r.d?new Date(r.d+"T00:00").getTime()/6e4:0;
- rs.forEach((r,i)=>{r.oi=i;r.key=!r.kind||r.kind=="wd"?(r.tmin!=null?base(r)+r.tmin:null):null});
- rs.forEach((r,i)=>{if(r.key==null)r.key=r.par&&r.par.key!=null?r.par.key+.5:(i&&rs[i-1].key!=null?rs[i-1].key+.1:base(r)+1439)});
- rs.sort((a,b)=>a.key-b.key||a.oi-b.oi);
- pend=rs;pendSim=simHere();rs.forEach(r=>r.sim=pendSim);prefill();showPend()}
-/* Work out Fuliza for each message, walking through them in time order, line by line */
 function prefill(){const p=P(),st={},L=s=>st[s]||(st[s]={w:walletBal(p,s),ow:fzTotal(p,s),lim:fzLimit(p,s)});
- pend.forEach(r=>{if(!r.on||r.hide||r.dup)return;const s=L(r.sim);
+ pend.forEach(r=>{if(!r.on||r.hide||r.dup||r.bank)return;const s=L(r.sim);
   if(r.kind=="wd"){s.w=r.nb!=null?r.nb:(s.w!=null?s.w-r.a-r.f:null);return}
   if(r.kind=="fz"){s.ow+=r.a+(r.acc||0);if(r.fzTot!=null)s.ow=r.fzTot;return}
   if(r.kind=="fzr"){s.ow=r.full?0:Math.max(0,s.ow-r.a);return}
@@ -549,79 +458,294 @@ function prefill(){const p=P(),st={},L=s=>st[s]||(st[s]={w:walletBal(p,s),ow:fzT
 function fmtWhen(r){if(r.nod)return"";const d=new Date(r.d+"T00:00").toLocaleString("en-GB",{day:"numeric",month:"short"});if(r.tmin==null)return d;const h=Math.floor(r.tmin/60),m=r.tmin%60;return`${d}, ${((h+11)%12)+1}:${String(m).padStart(2,"0")}${h<12?"am":"pm"}`}
 function showPend(){const p=P(),zf=p.zf,ms=multiSim();
  openS(`<h2 style="margin-top:0">Check before saving</h2><div class="mut">Shown in time order. Untick anything you don’t want.</div>
- ${ms?`<label>Which line did these messages come to?</label><div class="seg">${S.sims.map(s=>`<button class="${pendSim==s.id?"on":""}" onclick="setPendSim('${s.id}')">${esc(s.name)}</button>`).join("")}</div><div class="mut">You can change the line on any single message below.</div>`:`<div class="mut" style="margin-top:6px">Got two lines? Add the second in Settings → My M-Pesa lines.</div>`}
+ ${ms&&pend.some(r=>!r.bank&&!r.hide)?`<label>Which line did these M-Pesa messages come to?</label><div class="seg">${S.sims.map(s=>`<button class="${pendSim==s.id?"on":""}" onclick="setPendSim('${s.id}')">${esc(s.name)}</button>`).join("")}</div><div class="mut">You can change the line on any single message below.</div>`:""}
  ${pend.map((r,i)=>r.hide?"":pendCard(r,i,zf,ms)).join("")}
  <br><button onclick="savePend()">Save ticked</button>`)}
-function pendCard(r,i,zf,ms){const lab=r.kind=="wd"?"Cash withdrawal"+(r.who?" · "+esc(r.who):""):r.kind=="fz"?"Fuliza borrowed":r.kind=="fzr"?"Fuliza repayment":esc(r.who||"?");
- const head=`<label class="chk" style="margin:0"><input type="checkbox" ${r.on?"checked":""} onchange="pend[${i}].on=this.checked;prefill();showPend()"><span><b class="${r.t=="in"?"in":"out"}">${r.t=="in"?"+":"−"}${K(r.a)}</b> ${lab}<br><span class="mut">${fmtWhen(r)}${r.f?" · fee "+K(r.f):""}${r.dup?" · already added":""}</span></span></label>`;
- const line=ms?`<div class="seg" style="margin-top:8px">${S.sims.map(s=>`<button class="${r.sim==s.id?"on":""}" onclick="pend[${i}].sim='${s.id}';prefill();showPend()">${esc(s.name)}</button>`).join("")}</div>`:"";
+function setPB(i,b){const r=pend[i];r.b=b;if(!catsFor(b,r.t=="in").includes(r.c))r.c=r.t=="in"?(b=="b"?"Sales":"From a person"):"Other";showPend()}
+function setPendSim(s){pendSim=s;pend.forEach(r=>{r.sim=s;if(!r.fzAm)delete r.fzA;if(!r.fzRm)delete r.fzR});prefill();showPend()}
+/* ---------- Move money, reconcile ---------- */
+/* ---------- Places where money lives: M-Pesa lines, cash, banks, savings ---------- */
+const TYPEN={cash:"Cash",bank:"Bank",save:"Savings",mpesa:"M-Pesa"};
+const acct=id=>S.accts.find(a=>a.id==id);
+function places(){return S.sims.map(s=>({id:"mp:"+s.id,name:"M-Pesa · "+s.name,type:"mpesa",sim:s.id})).concat(S.accts)}
+const placeName=id=>(places().find(x=>x.id==id)||{name:id||"?"}).name;
+function acOf(x){if(!x)return null;if(x.m=="M-Pesa")return"mp:"+simOf(x);if(x.m=="Fuliza")return null;if(x.ac&&acct(x.ac))return x.ac;const n=String(x.m||"").toLowerCase(),a=S.accts.find(a=>a.name.toLowerCase()==n)||(n=="bank"?S.accts.find(a=>a.type=="bank"):null);return a?a.id:null}
+function legFields(pid){if(String(pid).startsWith("mp:"))return{m:"M-Pesa",sim:pid.slice(3)};const a=acct(pid);return{m:a?a.name:pid,ac:pid}}
+function placeBal(p,pid){if(String(pid).startsWith("mp:"))return walletBal(p,pid.slice(3));let w=(p.acb||{})[pid];if(!w){if(!p.tx.some(x=>acOf(x)==pid))return null;w={v:0,ts:0}}let v=w.v;p.tx.forEach(x=>{if((x.ts||0)<=w.ts||acOf(x)!=pid)return;v+=x.t=="in"?x.a:-(x.a+(x.f||0))});return Math.round(v*100)/100}
+function setPlaceBal(p,pid,v){if(String(pid).startsWith("mp:"))p.mpw[pid.slice(3)]={v,ts:nts()};else p.acb[pid]={v,ts:nts()}}
+function kwOf(a){return String(a.kw||a.name).toLowerCase().split(",").map(s=>s.trim()).filter(Boolean)}
+function placeFromText(t,types){const s=String(t||"").toLowerCase();const a=S.accts.find(a=>(!types||types.includes(a.type))&&kwOf(a).some(k=>k.length>2&&s.includes(k)));return a?a.id:null}
+const goalsAt=pid=>P().goals.filter(g=>g.place==pid);
+function owedOut(p){return p.debts.filter(d=>d.dir=="out").reduce((s,d)=>s+d.a-d.paid.reduce((q,x)=>q+x.a,0),0)}
+function owedIn(p){return p.debts.filter(d=>d.dir=="in").reduce((s,d)=>s+d.a-d.paid.reduce((q,x)=>q+x.a,0),0)}
+/* "Where my money is" card for Home */
+function moneyCard(p){const rows=places().map(x=>[x,placeBal(p,x.id)]),known=rows.filter(r=>r[1]!=null),tot=known.reduce((s,r)=>s+Math.max(0,r[1]),0),debt=owedOut(p)+fzTotal(p),mine=owedIn(p);
+ return`<div class="card" style="cursor:pointer" onclick="openRecon()"><div class="row" style="border:0;padding:0"><b>Where my money is</b><span class="mut">tap to update</span></div>
+ ${known.length?known.map(([x,v])=>`<div class="row" style="padding:6px 0"><span>${x.type=="mpesa"?"📱":x.type=="cash"?"💵":x.type=="bank"?"🏦":"🌱"} ${esc(x.name)}</span><b>${K(Math.max(0,v))}</b></div>`).join(""):`<div class="mut" style="margin-top:6px">Tell the app what you have in M-Pesa, cash, Loop, Equity, KCB, Ziidi, M-Shwari and Chumz, and it keeps count of every shilling from then on.</div>`}
+ ${known.length?`<div class="row" style="padding:8px 0 0"><b>Total</b><b>${K(tot)}</b></div>${debt||mine?`<div class="row" style="border:0;padding:4px 0 0"><span class="mut">After debts${fzTotal(p)>0.5?" and Fuliza":""}${mine?" (and money owed to me)":""}</span><b class="${tot-debt+mine<0?"out":"in"}">${K(tot-debt+mine)}</b></div>`:""}${known.length<rows.length?`<div class="mut" style="margin-top:4px">${rows.length-known.length} place${rows.length-known.length==1?"":"s"} not set yet: tap to add.</div>`:""}`:""}</div>`}
+/* ---------- Moving money between places ---------- */
+let xfPre={};
+function placeOpts(sel,filter){return places().filter(x=>!filter||filter(x)).map(x=>`<option value="${x.id}" ${x.id==sel?"selected":""}>${esc(x.name)}</option>`).join("")}
+function openXf(kind,pre){kind=kind||"mv";xfPre=pre||{};const p=P();
+ const seg=`<div class="seg"><button class="${kind=="mv"?"on":""}" onclick="openXf('mv')">Between places</button><button class="${kind=="pb"?"on":""}" onclick="openXf('pb')">Personal ↔ Business</button></div>`;
+ if(kind=="pb")return openS(`<h2 style="margin-top:0">Move money</h2>${seg}<div class="mut">Moving money from personal to business or back, e.g. paying yourself from the business.</div><label>Direction</label><select id="xd"><option value="bp">Business money → me (paying myself)</option><option value="pb">My money → the business</option></select><label>Where is this money?</label><select id="xpl">${placeOpts((places().find(z=>placeOwn(z.id)=="b")||{}).id)}</select><div class="mut">Use this when the money stays in the same place. If it moves too (e.g. Loop → your Jackie line), use Between places → Pay myself.</div><label>Amount (KSh)</label><input id="xa" type="number" inputmode="decimal"><label>Date</label><input id="xt" type="date" value="${today()}"><label>Transaction cost (optional)</label><input id="xf" type="number" inputmode="decimal"><label>Note (optional)</label><input id="xn" placeholder="e.g. my salary from the business"><div class="mut">Tip: paying yourself a fixed amount from the business each month keeps the two apart.</div><br><button onclick="doPB()">Save</button>`);
+ const from=xfPre.from||("mp:"+simHere()),to=xfPre.to||"cash";
+ openS(`<h2 style="margin-top:0">${xfPre.goal?(xfPre.out?"Take out of savings":"Add to savings"):"Move money"}</h2>${xfPre.goal?"":seg}<div class="mut">Your own money moving from one place to another: Loop → M-Pesa, M-Pesa → Ziidi, withdrawing cash and so on. It isn’t spending; only the charges count.</div>
+ <label>From</label><select id="xfr" onchange="xfHint()">${placeOpts(from)}</select><label>To</label><select id="xto" onchange="xfHint()">${placeOpts(to)}</select>
+ <label>Whose money</label><div class="seg" id="xws">${[["p","Personal"],["b","Business"],["bp","Pay myself"],["pb","Into business"]].map(([k,l])=>`<button class="${(xfPre.w||"p")==k?"on":""}" onclick="xfPre.w='${k}';[...$('xws').children].forEach(b=>b.className='');this.className='on';xfHint()">${l}</button>`).join("")}</div>
+ <label>Amount (KSh)</label><input id="xa" type="number" inputmode="decimal" value="${xfPre.a||""}" oninput="xfHint()"><label>Charges (KSh)</label><input id="xf" type="number" inputmode="decimal" oninput="this.dataset.man=1"><div class="mut" id="xh"></div>
+ <div id="xgw"></div><label>Date</label><input id="xt" type="date" value="${today()}"><label>Note (optional)</label><input id="xn"><br><button onclick="doMove()">Save</button>`);xfHint()}
+function xfHint(){const fr=$("xfr").value,to=$("xto").value,a=+$("xa").value||0,f=$("xf"),T=x=>(places().find(z=>z.id==x)||{}).type;let tip="";
+ if(!f.dataset.man){let v="";if(T(fr)=="mpesa"&&T(to)=="cash")v=a?band(WD,a):"",tip="Agent withdrawal charge (2026 rates).";else if(T(fr)=="mpesa"&&["ziidi","mshwari"].includes(to))v=0,tip="Moving to "+placeName(to)+" from M-Pesa is free.";else if(T(fr)=="mpesa"&&(T(to)=="bank"||T(to)=="save"))v=a?band(SEND,a):"",tip="Paybill estimate; your M-Pesa message has the exact charge.";else if(T(fr)=="bank")tip="Type the bank charge if there was one (check your bank message).";f.value=v===0?"":v}
+ const sim=String(to).startsWith("mp:")?to.slice(3):null;if(sim&&P().zf&&fzTotal(P(),sim)>0.5)tip+=` M-Pesa will take Fuliza first (about ${K(fzTotal(P(),sim))}).`;
+ if(xfPre.w=="bp")tip+=" Business money becoming yours: counts as paying yourself"+(S.ownPay?` (${K(ownPayIn(P(),ymOf(today())))} of ${K(S.ownPay)} so far this month)`:"")+".";if(xfPre.w=="pb")tip+=" Your own money going into the business.";if(fr==to&&!["bp","pb"].includes(xfPre.w))tip="From and To are the same place.";$("xh").textContent=tip.trim();
+ const gIn=P().goals.filter(g=>!g.place||g.place==to),gOut=P().goals.filter(g=>g.place==fr);
+ const sel=(id,l,gs,pre)=>gs.length?`<label>${l}</label><select id="${id}"><option value="">No goal</option>${gs.map(g=>`<option value="${g.id}" ${g.id==pre?"selected":""}>${esc(g.name)}</option>`).join("")}</select>`:"";
+ $("xgw").innerHTML=(T(to)=="save"||T(to)=="bank"?sel("xgi","Count towards a savings goal",gIn,xfPre.out?"":xfPre.goal):"")+(T(fr)=="save"||T(fr)=="bank"?sel("xgo","Taken out of a savings goal",gOut,xfPre.out?xfPre.goal:""):"")}
+function moveLegs(p,o){/* o:{from,to,a,f,w,d,n,lk,code,raw,gi,go} */const lk=o.lk||uid(),F=legFields(o.from),T=legFields(o.to),wo=o.w[0],wi=o.w[1]||o.w[0],nn=o.n||(o.from==o.to?(wi=="p"?"business money to me":"my money into the business")+" · "+placeName(o.to):placeName(o.from)+" → "+placeName(o.to))+(wo!=wi?(wi=="p"?" · paying myself":" · into business"):"");
+ p.tx.push(Object.assign({id:uid(),ts:nts(),lk,at:today(),d:o.d,t:"out",b:wo,s:wo,rp:1,a:o.a,who:"To "+placeName(o.to),c:"Transfer",n:nn,code:o.code,raw:o.raw},F),Object.assign({id:uid(),ts:nts(),lk,at:today(),d:o.d,t:"in",b:wi,s:wi,rp:1,a:o.a,who:"From "+placeName(o.from),c:"Transfer",n:nn},T));
+ if(o.f>0)p.tx.push(Object.assign({id:uid(),ts:nts(),lk,at:today(),d:o.d,t:"out",b:wo,s:wo,a:o.f,who:(F.m=="M-Pesa"?"M-Pesa":placeName(o.from))+" charge",c:"Transaction costs",n:nn},F));
+ const g1=o.gi&&p.goals.find(g=>g.id==o.gi),g2=o.go&&p.goals.find(g=>g.id==o.go);if(g1){g1.saved.push({a:o.a,d:o.d,tx:lk});if(!g1.place)g1.place=o.to}if(g2)g2.saved.push({a:-o.a,d:o.d,tx:lk});
+ let used=0;if(T.sim&&fzAuto(p)&&fzTotal(p,T.sim)>0.5){const amt=o.fzR!=null?o.fzR:o.a;if(amt>0)used=repayFz(p,amt,o.d,wi,lk,undefined,T.sim)}return{lk,used,g1}}
+function doMove(){const a=parseFloat($("xa").value);if(!a)return toast("Enter an amount");const fr=$("xfr").value,to=$("xto").value;if(fr==to&&!["bp","pb"].includes(xfPre.w))return toast("From and To are the same");const p=P();
+ const g1=p.goals.find(g=>g.id==($("xgi")||{}).value),was=g1?goalSaved(g1):0;
+ const r=moveLegs(p,{from:fr,to,a,f:parseFloat($("xf").value)||0,w:["b","bp","pb"].includes(xfPre.w)?xfPre.w:"p",d:$("xt").value||today(),n:$("xn").value.trim(),gi:($("xgi")||{}).value,go:($("xgo")||{}).value});
+ save();closeS();render();if(g1&&was<g1.target&&goalSaved(g1)>=g1.target){confetti();toast("Goal reached: "+g1.name+" ✦")}else if(r.used&&fzTotal(p)<0.5){confetti();toast("Saved. Fuliza cleared ✦")}else toast(r.used?`Saved. ${K(r.used)} went to Fuliza.`:"Saved")}
+function doPB(){const a=parseFloat($("xa").value);if(!a)return toast("Enter an amount");const pl=$("xpl").value,p=P();moveLegs(p,{from:pl,to:pl,a,f:parseFloat($("xf").value)||0,w:$("xd").value,d:$("xt").value||today(),n:$("xn").value.trim()});save();closeS();render();const pay=ownPayIn(p,ymOf(today()));toast(S.ownPay&&pay>S.ownPay?`Saved. You’ve paid yourself ${K(pay)}, over your ${K(S.ownPay)} for the month.`:"Saved")}
+function openRecon(){const p=P(),b=bal(p),pl=places();openS(`<h2 style="margin-top:0">Check my real balance</h2><div class="mut">Fill in only what you know: look at each app or dial the code. The app then keeps count by itself. If a figure doesn’t match, an entry was probably missed.</div>
+ ${pl.map((x,i)=>{const v=placeBal(p,x.id),sim=x.sim;return`<div class="card" style="padding:10px 12px"><b>${x.type=="mpesa"?"📱":x.type=="cash"?"💵":x.type=="bank"?"🏦":"🌱"} ${esc(x.name)}</b><label>Balance right now${x.type=="mpesa"?" (*334#)":""}</label><input id="rb_${i}" type="number" inputmode="decimal" placeholder="${v==null?"not set yet":"App thinks "+Math.max(0,v)}">${sim&&p.zf?`<label>Fuliza I owe right now (*234#)</label><input id="rf_${i}" type="number" inputmode="decimal" placeholder="App thinks ${Math.round(fzTotal(p,sim))}">`:""}</div>`}).join("")}
+ <details style="margin-top:8px"><summary class="mut">Compare personal and business totals too</summary><label>Personal money I really have (all places)</label><input id="rp" type="number" inputmode="decimal" placeholder="App says ${Math.round(b.p)}"><label>Business money I really have</label><input id="rbz" type="number" inputmode="decimal" placeholder="App says ${Math.round(b.b)}"></details>
+ <br><button onclick="doRecon()">Save and compare</button><div id="rr"></div>`)}
+let reconFz={};
+function doRecon(){const p=P(),b=bal(p),pl=places(),vp=$("rp").value,vb=$("rbz").value,dp=vp===""?0:+vp-b.p,db=vb===""?0:+vb-b.b;let out="";reconFz={};
+ pl.forEach((x,i)=>{const e=$("rb_"+i),f=$("rf_"+i);if(e&&e.value!==""){const old=placeBal(p,x.id),d=old==null?null:+e.value-old;setPlaceBal(p,x.id,+e.value);out+=`<div class="row"><span>${esc(x.name)}</span><b class="${d==null||Math.abs(d)<1?"in":"warn"}">${d==null?"Saved ✓":Math.abs(d)<1?"Matches ✓":(d>0?K(d)+" more":K(-d)+" less")+" than the app had · updated"}</b></div>`}
+  if(f&&f.value!==""){const d=+f.value-fzTotal(p,x.sim);if(Math.abs(d)>=1)reconFz[x.sim]=+f.value;out+=`<div class="row"><span>${esc(x.name)} Fuliza</span><b class="${Math.abs(d)<1?"in":"warn"}">${Math.abs(d)<1?"Matches ✓":d>0?"You owe "+K(d)+" more than the app knows":"You owe "+K(-d)+" less than the app thinks"}</b></div>`}});
+ save();const fix=Math.abs(dp)>=1||Math.abs(db)>=1||Object.keys(reconFz).length;
+ $("rr").innerHTML=`<div class="card">${[["Personal",dp,vp],["Business",db,vb]].filter(z=>z[2]!=="").map(([l,d])=>`<div class="row"><span>${l} total</span><b class="${Math.abs(d)<1?"in":"warn"}">${Math.abs(d)<1?"Matches ✓":"You have "+K(Math.abs(d))+(d>0?" more":" less")+" than the app"}</b></div>`).join("")}${out||'<div class="mut">Nothing filled in.</div>'}</div>${fix?`<div class="mut">Corrections don’t count as spending or income in reports.</div><br><button class="g" onclick="fixRecon(${dp},${db})">Correct the app to match</button>`:`<br><button class="g" onclick="closeS();render()">Done</button>`}`}
+function fixRecon(dp,db){const p=P();[["p",dp],["b",db]].forEach(([k,d])=>{if(Math.abs(d)>=1)p.tx.push({id:uid(),ts:nts(),at:today(),d:today(),t:d>0?"in":"out",b:k,s:k,rp:1,a:Math.abs(d),m:"Correction",who:"Balance correction",c:"Correction",n:"from balance check"})});
+ Object.entries(reconFz).forEach(([s,v])=>setFzOwed(p,s,v,"set from balance check"));reconFz={};save();closeS();render();toast("Corrected")}
+
+function savings(){const p=P(),ef=p.goals.find(g=>g.ef),ea=essentialAvg(p),months=S.efm||3;
+ const gPlace=g=>g.place?placeName(g.place):(g.kept||"—");
+ let efc;if(ef){const s=goalSaved(ef),cov=ea.avg>0?s/ea.avg:0;efc=`<div class="card hl"><div class="row" style="border:0;padding:0"><b>Emergency fund</b><span>${K(s)} / ${K(ef.target)}</span></div><div class="mut">${ea.avg>0?`Covers about <b>${cov.toFixed(1)} months</b> of your usual essentials (${K(ea.avg)} a month).`:"Record a month of spending to see how many months this covers."} Kept in ${esc(gPlace(ef))}.</div><div class="track"><div class="bar" style="width:${Math.min(100,s/ef.target*100)}%;background:var(--gold)"></div></div><div class="btns"><button onclick="addSave(${ef.id})">Add</button><button class="g" onclick="addSave(${ef.id},true)">Take out</button><button class="x" style="flex:0" onclick="openGoal(1,${ef.id})">✎</button></div></div>`}
+ else efc=`<div class="card hl"><b>Emergency fund</b><div class="mut">Money set aside so a hospital bill, a slow sales month or a broken phone doesn’t push you onto Fuliza. A common target is 3 to 6 months of essentials.${ea.avg>0?` Your essentials average about ${K(ea.avg)} a month, so ${months} months is ${K(Math.round(ea.avg*months))}.`:""}</div><button style="margin-top:8px" onclick="openGoal(true)">Start my emergency fund</button></div>`;
+ const g=p.goals.filter(x=>!x.ef);
+ const sp=S.accts.filter(a=>a.type=="save");
+ const spCards=sp.map(a=>{const v=placeBal(p,a.id),mo=v&&a.rate?v*a.rate/100/12*.85:0;return`<div class="row"><div><b>🌱 ${esc(a.name)}</b><div class="mut">${a.rate?`About ${a.rate}% a year`:"Rate not set"}${mo>=1?` · earns about ${K(Math.round(mo))} a month after tax`:""}${goalsAt(a.id).length?" · "+goalsAt(a.id).map(x=>esc(x.name)).join(", "):""}</div></div><div style="text-align:right;white-space:nowrap"><b>${v==null?"—":K(Math.max(0,v))}</b><div><button class="x" onclick="openXf('mv',{to:'${a.id}'})" aria-label="Add money">＋</button> <button class="x" onclick="draft={t:'in',b:'p',pw:'${a.id}',c:'Interest earned',who:'${esc(a.name)}'};openTx()" aria-label="Record interest">%</button></div></div></div>`}).join("");
+ return`${efc}
+ <h2>My savings places</h2><div class="card" style="padding:4px 14px">${spCards||'<div class="mut" style="padding:10px 0">Add Ziidi, M-Shwari, Chumz or others in Settings → My accounts.</div>'}</div><div class="mut">＋ moves money in · % records interest you were paid. Set each rate in Settings → My accounts.</div>
+ <h2>Savings goals</h2>${g.map(x=>{const s=goalSaved(x),pc=Math.min(100,s/x.target*100),mleft=x.by?Math.max(1,Math.ceil((new Date(x.by+"T00:00")-Date.now())/2592e6)):0;
+ return`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(x.name)}</b><span>${K(s)} / ${K(x.target)}</span></div><div class="mut">In ${esc(gPlace(x))} · ${x.by?"By "+x.by+" · ":""}${pc.toFixed(0)}% there${x.by&&s<x.target?" · "+K((x.target-s)/mleft)+" a month needed":""}${s>=x.target?' · <span class="in">Reached ✓</span>':""}</div>
+ <div class="track"><div class="bar" style="width:${Math.max(2,pc)}%;background:var(--in)"></div></div><div class="btns"><button onclick="addSave(${x.id})">Add</button><button class="g" onclick="addSave(${x.id},true)">Take out</button><button class="x" style="flex:0" onclick="openGoal(0,${x.id})">✎</button><button class="x" style="flex:0" onclick="delGoal(${x.id})">✕</button></div></div>`}).join("")||'<div class="mut">What are you saving for? Stock, land, school fees, a trip home…</div>'}
+ <button onclick="openGoal()">New savings goal</button>
+ <h2>Where to keep savings <span class="mut" style="font-weight:400">(rates checked Nov 2026)</span></h2>
+ <div class="card"><b>1. Clear the Equity loan first</b><div class="mut">Mobile loans cost more than any savings pays. An Equity Eazzy Loan is about 1.5% a month plus a 5% fee and excise, while savings earn roughly 6–10% a year. Every extra shilling on the loan “earns” you more than saving it would. Keep a small cushion, then put the rest on the loan.</div></div>
+ <div class="card"><b>2. A small cushion in Ziidi</b><div class="mut">Instant to move in and out of M-Pesa, free deposits. Its yield is lower than most money market funds, so keep only about one month of essentials here: the money you might need tonight.</div></div>
+ <div class="card"><b>3. The rest of the emergency fund in a bigger money market fund</b><div class="mut">Large CMA-licensed funds paid around 10% a year in late October 2026 (e.g. Old Mutual about 10.3%, Madison about 10.4%), against an average of about 9%. Withdrawals usually take 1–3 working days. Size and trust matter as much as the top rate.</div></div>
+ <div class="card"><b>4. Goals with a date: Chumz or LOOP Invest</b><div class="mut">Chumz invests through Nabo Capital’s money market fund and is good for goal saving and the 52-week challenge, but locked plans lose part of the interest if you withdraw early, so not for emergencies. LOOP Invest pays a fixed 6.8–7.3% for 3–12 months. Loop Goals themselves pay no interest.</div></div>
+ <div class="card"><b>5. Not M-Shwari for small savings</b><div class="mut">Up to KSh 20,000 it pays 3% a year, below inflation (about 6.7%), so your money loses value there. Bank savings accounts average about 3.3%.</div></div>
+ <div class="mut" style="margin:6px 0 4px">Money market fund interest has 15% withholding tax taken off. Rates change weekly, so check the app before moving money. This is general information, not financial advice.</div>`}
+function openGoal(ef,id){const ea=essentialAvg(P()),m=S.efm||3,g=id?P().goals.find(x=>x.id==id):{place:ef?"ziidi":""};const cur=g.place||(g.kept?placeFromText(g.kept):"");openS(`<h2 style="margin-top:0">${id?"Edit "+esc(g.name):ef?"Emergency fund":"New savings goal"}</h2>${ef?"":`<label>What for?</label><input id="w" value="${esc(g.name||"")}">`}<label>Target (KSh)</label><input id="a" type="number" inputmode="decimal" value="${g.target||(ef&&ea.avg?Math.round(ea.avg*m):"")}"><label>Where the money is kept</label><select id="kp">${placeOpts(cur,x=>x.type!="mpesa")}</select>${ef?"":`<label>By when (optional)</label><input id="u" type="date" value="${g.by||""}">`}${id?`<label>Saved so far (KSh)</label><input id="gs" type="number" inputmode="decimal" value="${goalSaved(g)}"><div class="mut">Changing this only changes the goal, not your entries.</div>`:""}<br><button onclick="addGoal(${ef?1:0},${id||0})">Save</button>`)}
+function addGoal(ef,id){const a=parseFloat($("a").value),w=ef?"Emergency fund":$("w").value.trim();if(!a||!w)return toast("Add a name and a target");const p=P(),pl=$("kp").value;
+ if(id){const g=p.goals.find(x=>x.id==id);g.name=w;g.target=a;g.place=pl;g.kept=placeName(pl);if(!ef)g.by=$("u").value;const want=+$("gs").value||0,has=goalSaved(g);if(Math.abs(want-has)>=0.01)g.saved.push({a:want-has,d:today(),adj:1})}
+ else p.goals.push({id:uid(),name:w,target:a,by:ef?"":$("u").value,place:pl,kept:placeName(pl),ef:!!ef,saved:[]});save();closeS();render()}
+function addSave(id,out){const g=P().goals.find(x=>x.id==id),pl=g.place||placeFromText(g.kept)||"ziidi";openXf("mv",out?{from:pl,to:"mp:"+simHere(),goal:id,out:1}:{from:"mp:"+simHere(),to:pl,goal:id})}
+
+const PAYW=()=>[["M-Pesa","M-Pesa"]].concat(S.accts.map(a=>[a.id,a.name])).concat(P().zf?[["Fuliza","Fuliza"]]:[]);
+const pwOf=d=>d.pw||(d.m=="M-Pesa"||!d.m?"M-Pesa":d.m=="Fuliza"?"Fuliza":(acOf(d)||"cash"));
+function openTx(){if(!draft.sim&&!draft.id)draft.sim=simHere();if(!draft.id&&!draft.sx&&draft.t!="in"){const pw0=pwOf(draft),own=placeOwn(pw0=="M-Pesa"?"mp:"+(draft.sim||SIM0()):pw0);if(own=="b")draft.s="b"}const p=P(),d=draft,inn=d.t=="in",pw=pwOf(d),mp=pw=="M-Pesa",old=d.id?p.tx.find(y=>y.id==d.id):null,sim=d.sim||SIM0(),biz=d.b=="b";
+ const linkedR=old&&inn&&old.lk?p.tx.filter(y=>y.lk==old.lk&&y.fzid).reduce((s,y)=>s+y.a,0):0;
+ const showR=inn&&mp&&p.zf&&(fzTotal(p,sim)>0.5||linkedR>0),showA=!inn&&mp&&p.zf,loans=p.debts.filter(x=>x.dir=="out");
+ openS(`<h2 style="margin-top:0">${d.id?"Edit entry":inn?"Money received":"Money paid"}</h2>
+ <div class="seg"><button class="${!inn?"on":""}" onclick="keep('t','out')">Paid</button><button class="${inn?"on":""}" onclick="keep('t','in')">Received</button></div>
+ <label>${inn?"Goes into":"What it was for"}</label><div class="seg"><button class="${!biz?"on":""}" onclick="keep('b','p')">Personal</button><button class="${biz?"on":""}" onclick="keep('b','b')">Business</button></div>
+ ${!inn?`<label>Paid from</label><div class="seg"><button class="${(d.s||d.b||"p")!="b"?"on":""}" onclick="keep('s','p')">Personal money</button><button class="${(d.s||d.b)=="b"?"on":""}" onclick="keep('s','b')">Business money</button></div>`:""}
+ <label>Amount (KSh)</label><input id="a" type="number" inputmode="decimal" value="${d.a||""}" oninput="autoFee();fzHints()">
+ <label>${inn?"From whom (person or business)":"Paid to"}</label><input id="w" value="${esc(d.who)}" onchange="autoCat()">
+ <label>Category</label>${catSelect("c",d.b,inn,d.c)}
+ ${inn&&biz?`<label>Of this, delivery fee the client paid (KSh, optional)</label><input id="dlv" type="number" inputmode="decimal" value="${d.dlv||""}" placeholder="0">`:""}
+ ${!inn&&d.c=="Airtime & data"?`<label>Of this, how much repaid Okoa Jahazi? (KSh, optional)</label><input id="okoa" type="number" inputmode="decimal" value="${d.okoa||""}" placeholder="0"><div class="mut">Okoa takes a 10% fee up front, so this shows what borrowing airtime costs you.</div>`:""}
+ ${!inn&&d.c=="Delivery"?`<label class="chk"><input type="checkbox" id="cp" ${d.cp?"checked":""}> The client paid for this delivery</label>`:""}
+ ${!inn&&d.c=="Loan repayment"&&loans.length?`<label>Which loan?</label><select id="ln"><option value="">Not linked</option>${loans.map(l=>`<option value="${l.id}" ${d.loan==l.id?"selected":""}>${esc(l.who)} (${K(l.a-l.paid.reduce((s,x)=>s+x.a,0))} left)</option>`).join("")}</select>`:""}
+ <label>What was it for? (optional)</label><input id="n" value="${esc(d.n)}" placeholder="${biz?(inn?"e.g. 3 pairs, order for Wanjiku":"e.g. delivery to Ruaka"):"e.g. groceries for the week"}">
+ <label>Date</label><input id="dt" type="date" value="${d.d||today()}">
+ <label>${inn?"Came into":"Paid with"}</label><select id="m" onchange="keep('pw',this.value)">${PAYW().map(([v,l])=>`<option value="${v}" ${pw==v?"selected":""}>${esc(l)}</option>`).join("")}</select>
+ ${mp&&multiSim()?`<label>Line (SIM)</label><div class="seg">${S.sims.map(s=>`<button class="${sim==s.id?"on":""}" onclick="keep('sim','${s.id}')">${esc(s.name)}</button>`).join("")}</div>`:""}
+ ${!inn&&mp?`<label>M-Pesa type (to estimate the charge)</label><select id="mt" onchange="autoFee(1)">${[["send","Send money"],["till","Buy Goods / till (free for you)"],["paybill","Paybill"],["wd","Withdraw at agent"]].map(([k,l])=>`<option value="${k}" ${d.mt==k?"selected":""}>${l}</option>`).join("")}</select>`:""}
+ <label>${mp?"Transaction cost":"Bank or transaction charge"} (optional)</label><input id="f" type="number" inputmode="decimal" value="${d.f||""}" oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fh"></div>
+ ${showR?`<div class="card bad"><b>M-Pesa takes Fuliza first</b><div class="mut">${fzTotal(p,sim)>0.5?`You owe Fuliza about ${K(fzTotal(p,sim))}${multiSim()?" on "+esc(simName(sim)):""}. Fees are cleared first, then what you borrowed.`:"Part of this money went to Fuliza."}</div><label>Amount of this taken for Fuliza (KSh)</label><input id="fzR" type="number" inputmode="decimal" value="${d.fzR??(old?linkedR||"":"")}" ${old||d.fzR!=null?'data-man="1"':""} oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fzRh"></div></div>`:""}
+ ${showA?`<label>Part covered by Fuliza (KSh)</label><input id="fzA" type="number" inputmode="decimal" value="${d.fzA??""}" ${old||d.fzA!=null?'data-man="1"':""} oninput="this.dataset.man=1;fzHints()"><div class="mut" id="fzAh"></div>`:""}
+ ${old&&old.raw?`<details style="margin-top:10px"><summary class="mut">Original message</summary><div class="mut" style="white-space:pre-wrap;margin-top:6px">${esc(old.raw)}</div></details>`:""}
+ <br><button onclick="addTx()">Save</button>${d.id?`<button class="g" style="margin-top:8px" onclick="const i=${d.id};closeS();del(i)">Delete this entry</button>`:""}`);fzHints()}
+function grab(){if(!$("a"))return;draft.a=$("a").value;draft.who=$("w").value;draft.pw=$("m").value;draft.f=$("f").value;draft.d=$("dt").value;const c=$("c").value;if(c!="__new")draft.c=c;draft.n=$("n").value;if($("mt"))draft.mt=$("mt").value;if($("fzA")&&$("fzA").dataset.man)draft.fzA=$("fzA").value;if($("fzR")&&$("fzR").dataset.man)draft.fzR=$("fzR").value;if($("dlv"))draft.dlv=$("dlv").value;if($("okoa"))draft.okoa=$("okoa").value;if($("cp"))draft.cp=$("cp").checked?1:0;if($("ln"))draft.loan=$("ln").value}
+function keep(k,v){grab();draft[k]=v;if((k=="t"||k=="b")&&!catsFor(draft.b,draft.t=="in").includes(draft.c))draft.c="";if(k=="b"&&!draft.sx)draft.s=v;if(k=="s")draft.sx=1;openTx()}
+function catChg(sel,k,inn){if(sel.value=="__new")return newCat(sel,k,inn);if(sel.dataset.i!=null&&pend[+sel.dataset.i]){const r=pend[+sel.dataset.i];r.c=sel.value;if(["Delivery","Loan repayment","Airtime & data"].includes(sel.value)||r.c0!=null&&["Delivery","Loan repayment","Airtime & data"].includes(r.c0))showPend();r.c0=sel.value;return}
+ if(sel.id=="c"&&$("sheet").style.display=="flex"&&$("a")&&["Delivery","Loan repayment","Airtime & data"].some(z=>z==sel.value||z==draft.c)){grab();openTx()}}
+function loanLink(p,x){/* keep the loan's "paid" list in step with a Loan repayment entry */p.debts.forEach(d=>{d.paid=d.paid.filter(e=>e.tx!=x.id)});if(x.c=="Loan repayment"&&x.loan){const d=p.debts.find(z=>z.id==x.loan);if(d)d.paid.push({a:x.a,d:x.d,tx:x.id})}}
+async function addTx(){const a=parseFloat($("a").value);if(!a)return toast("Enter an amount");
+ if(!draft.id&&draft.t=="out"&&(draft.s||draft.b||"p")=="b"&&draft.b!="b"){const ym=ymOf(today()),paid=ownPayIn(P(),ym);if(!await ask(`This uses <b>business money</b> for something <b>personal</b>. It will count as paying yourself${S.ownPay?` (this month so far: ${K(paid)} of ${K(S.ownPay)})`:""}.<br><br>If it was really for the business, go back and tap Business.`,"Yes, count it as my pay","Go back"))return}const p=P(),pw=$("m").value,old=draft.id?p.tx.find(y=>y.id==draft.id):null,L=pw=="M-Pesa"?{m:"M-Pesa"}:pw=="Fuliza"?{m:"Fuliza"}:legFields(pw),m=L.m,sim=m=="M-Pesa"?(draft.sim||SIM0()):undefined;
+ const c=$("c").value=="__new"?"Other":$("c").value;
+ const x={id:draft.id||uid(),ts:old?.ts||nts(),at:old?.at||today(),d:$("dt").value||today(),t:draft.t,b:draft.b,a,m,who:$("w").value.trim(),c,n:$("n").value.trim(),f:parseFloat($("f").value)||0,s:draft.t=="in"?draft.b:(draft.s||draft.b||"p")};
+ if(sim)x.sim=sim;if(L.ac)x.ac=L.ac;
+ ["code","bill","lk","rp","mt","fzid","fzk","raw"].forEach(k=>{const v=old&&old[k]!=null?old[k]:draft[k];if(v!=null&&v!=="")x[k]=v});if($("mt"))x.mt=$("mt").value;
+ if($("dlv")&&+$("dlv").value>0)x.dlv=Math.min(a,+$("dlv").value);if($("cp")&&$("cp").checked)x.cp=1;if($("okoa")&&+$("okoa").value>0)x.okoa=Math.min(a,+$("okoa").value);if($("ln")&&$("ln").value)x.loan=+$("ln").value;
+ if(old)p.tx=p.tx.filter(y=>y.id!=old.id);
+ if(L.ac=="ziidi"&&x.t=="out"&&S.zr>0)x.cb=a*S.zr/100;
+ let msg="Saved";
+ const lf=old?p.fz.find(f=>f.src==old.id):null;
+ if(x.t=="out"&&$("fzA")){const v=Math.min(a+x.f,Math.max(0,+$("fzA").value||0));
+  if(v>0){x.fzA=v;if(lf){lf.a=Math.max(v,lf.rp||0);lf.sim=sim;lf.b=x.b;lf.d=x.d}else p.fz.push({id:uid(),sim,d:x.d,a:v,b:x.b,done:false,src:x.id});if(!old||!old.fzA)msg=`Saved. ${K(v)} logged as Fuliza.`}
+  else if(lf){if(lf.rp||lf.fp){lf.a=lf.rp||0;lf.done=true;lf.dd=lf.dd||today();lf.cost=lf.fp||0}else p.fz=p.fz.filter(f=>f!==lf)}}
+ else if(old&&old.fzA&&x.t=="out"&&m=="M-Pesa")x.fzA=old.fzA;
+ p.tx.push(x);loanLink(p,x);
+ if(x.t=="in"&&$("fzR")){const want=Math.min(a,Math.max(0,+$("fzR").value||0)),prev=old&&old.lk?p.tx.filter(y=>y.lk==old.lk&&y.fzid):[],had=prev.reduce((s,y)=>s+y.a,0);
+  if(Math.abs(want-had)>=0.01){prev.forEach(y=>fzApply(p,y,-1));const ids=new Set(prev.map(y=>y.id));p.tx=p.tx.filter(y=>!ids.has(y.id));if(want>0){x.lk=x.lk||uid();const used=repayFz(p,want,x.d,x.b,x.lk,undefined,sim,old?x.ts:0);msg=fzTotal(p,sim)<0.5?"Fuliza cleared ✦":`Saved. ${K(used)} went to Fuliza.`}}}
+ if(m=="Fuliza"&&x.t=="out"&&!old)p.fz.push({id:uid(),sim:SIM0(),d:x.d,a,b:x.b,done:false,src:x.id});
+ draft={t:"out",b:"p"};save();closeS();render();if(msg=="Fuliza cleared ✦")confetti();toast(msg)}
+async function del(id){const p=P(),x=p.tx.find(y=>y.id==id);if(!x)return;const grp=x.lk?p.tx.filter(y=>y.lk==x.lk):[x];
+ const fzs=p.fz.filter(f=>grp.some(y=>y.id==f.src)&&!(f.rp||f.fp));
+ const msg=x.c=="Transfer"?"Delete this move (both sides)?":grp.some(y=>y.fzid)?"Delete this entry and the Fuliza repayment that came with it?":fzs.length?"Delete this entry and the Fuliza logged with it?":"Delete this entry?";
+ if(!await ask(msg+" You can undo it in Settings.","Delete"))return;
+ const ids=new Set(grp.map(y=>y.id)),lks=new Set(grp.map(y=>y.lk).filter(Boolean)),gs=[],ls=[];
+ p.goals.forEach(g=>g.saved.forEach(e=>{if(e.tx&&lks.has(e.tx))gs.push([g.id,e])}));p.goals.forEach(g=>g.saved=g.saved.filter(e=>!(e.tx&&lks.has(e.tx))));
+ p.debts.forEach(d=>d.paid.forEach(e=>{if(e.tx&&ids.has(e.tx))ls.push([d.id,e])}));p.debts.forEach(d=>d.paid=d.paid.filter(e=>!(e.tx&&ids.has(e.tx))));
+ grp.forEach(y=>fzApply(p,y,-1));const fids=new Set(fzs.map(f=>f.id));p.fz=p.fz.filter(f=>!fids.has(f.id));
+ lastDel={pi:S.cur,xs:grp,fz:fzs,gs,ls};p.tx=p.tx.filter(y=>!ids.has(y.id));save();render();toast("Deleted. Undo is in Settings.")}
+function undoDel(){if(!lastDel)return tell("Nothing to undo.");const p=S.p[lastDel.pi],xs=lastDel.xs||[lastDel.x];p.fz.push(...(lastDel.fz||[]));xs.forEach(y=>fzApply(p,y,1));p.tx.push(...xs);
+ (lastDel.gs||[]).forEach(([gid,e])=>{const g=p.goals.find(z=>z.id==gid);if(g)g.saved.push(e)});(lastDel.ls||[]).forEach(([did,e])=>{const d=p.debts.find(z=>z.id==did);if(d)d.paid.push(e)});lastDel=null;save();closeS();render();toast("Restored")}
+
+function parseBank(t){const am=t.match(/(?:KES|KSHS?|Kshs?)\.?\s?([\d,]+(?:\.\d{1,2})?)/i);if(!am)return null;
+ const r={bank:1,a:num(am[1]),t:"out",b:"p",who:"",f:0,d:today(),raw:t.slice(0,600),code:""};
+ const lo=t.toLowerCase(),iIn=lo.search(/credited|received|deposit|credit\b|transfer from|refund|has been paid to your/),iOut=lo.search(/debited|withdraw|paid to|sent to|purchase|payment to|transferred to|debit\b|you have paid|you paid/);
+ if(iIn>=0&&(iOut<0||iIn<iOut))r.t="in";
+ const w=t.match(new RegExp((r.t=="in"?"from":"(?:to|at)")+"\\s+(.{2,40}?)(?=\\s+(?:on|ref|via|at|acc|a\\/c|account|for|with|date|txn)\\b|[.,;]|$)","i"));if(w&&!/^your\b/i.test(w[1].trim()))r.who=w[1].trim();
+ const dt=t.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);if(dt){let y=+dt[3];if(y<100)y+=2000;r.d=`${y}-${String(dt[2]).padStart(2,"0")}-${String(dt[1]).padStart(2,"0")}`}
+ else{const d2=t.match(/(\d{1,2})(?:st|nd|rd|th)?[- ]?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[- ,]*(\d{2,4})/i);if(d2){let y=+d2[3];if(y<100)y+=2000;const mo="janfebmaraprmayjunjulaugsepoctnovdec".indexOf(d2[2].toLowerCase())/3+1;r.d=`${y}-${String(mo).padStart(2,"0")}-${String(d2[1]).padStart(2,"0")}`}else r.nod=1}
+ const tm=t.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?/i);if(tm){let h=+tm[1];if(tm[3]){h=h%12;if(/p/i.test(tm[3]))h+=12}r.tmin=h*60+ +tm[2]}
+ const bl=t.match(/(?:avail(?:able)?\.?\s*bal(?:ance)?|a\/c\s*bal(?:ance)?|bal(?:ance)?)\.?\s*(?:is|:)?\s*(?:KES|KSHS?|Kshs?)\.?\s?(-?[\d,]+(?:\.\d+)?)/i);if(bl)r.nbb=num(bl[1]);
+ const rf=t.match(/(?:ref(?:erence)?|txn|transaction(?:\s*(?:id|code|ref))?)(?:\s*(?:no|number))?\W{0,3}([A-Z0-9]{6,})/i);if(rf)r.code=rf[1];
+ const fe=t.match(/(?:charges?|fees?|commission)\W{0,3}(?:of\s*)?(?:KES|KSHS?|Kshs?)\.?\s?([\d,]+(?:\.\d+)?)/i);if(fe)r.f=num(fe[1]);
+ r.ac=placeFromText(t,["bank","save"])||(S.accts.find(a=>a.type=="bank")||S.accts[0]||{}).id;
+ if(/m-?pesa|mobile money/i.test(t))r.mvMp=1;
+ r.c=r.t=="in"?"From a person":"Other";return r}
+const isMpesaMsg=t=>/Confirmed|New M-?PESA balance|Fuliza M-?PESA|from your M-?PESA has been used|M-?Shwari/i.test(t);
+function parseOne(t){if(!isMpesaMsg(t))return parseBank(t);const amt=t.match(/Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(!amt)return null;
+ const r={a:num(amt[1]),t:"out",b:"p",m:"M-Pesa",who:"",f:0,d:today(),raw:t.slice(0,600),code:(t.match(/\b([A-Z0-9]{10})\b\s*Confirmed/)||[])[1]||""};
+ const cost=t.match(/transaction cost,?\s*Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(cost)r.f=num(cost[1]);
+ const dt=t.match(/on\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);if(dt){let y=+dt[3];if(y<100)y+=2000;r.d=`${y}-${String(dt[2]).padStart(2,"0")}-${String(dt[1]).padStart(2,"0")}`}else r.nod=1;
+ const tm=t.match(/at\s+(\d{1,2}):(\d{2})\s*([AP]M)?/i);if(tm){let h=+tm[1];if(tm[3]){h=h%12;if(/p/i.test(tm[3]))h+=12}r.tmin=h*60+ +tm[2]}
+ const nb=t.match(/new M-?PESA balance is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(nb)r.nb=num(nb[1]);
+ const tot=t.match(/outstanding amount is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(tot)r.fzTot=num(tot[1]);
+ const av=t.match(/available Fuliza M-?PESA limit is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);if(av)r.avail=num(av[1]);
+ let w;
+ if(/fuliza m-?pesa amount is/i.test(t)&&!/sent to|paid to/i.test(t)){const fa=t.match(/fuliza m-?pesa amount is Ksh\.?\s?([\d,]+(?:\.\d+)?)/i),ac=t.match(/access fee charged,?\s*Ksh\.?\s?([\d,]+(?:\.\d+)?)/i);r.kind="fz";r.a=num(fa[1]);if(ac)r.acc=num(ac[1]);r.who="Fuliza";return r}
+ if(/used to (fully |partially )?(re)?pay/i.test(t)&&/fuliza/i.test(t)){r.kind="fzr";r.full=/fully/i.test(t);r.who="Fuliza repayment";return r}
+ if(/transferred (to|from) M-?Shwari/i.test(t)){r.t=/transferred from/i.test(t)?"in":"out";r.who="M-Shwari";r.mvAc=acct("mshwari")?"mshwari":placeFromText("m-shwari");return r}
+ if(/you have received|received Ksh/i.test(t)){r.t="in";w=t.match(/from\s+(.+?)(?:\s+\+?\d{9,12}|\s+on\s|\.\s|$)/i);r.c="From a person"}
+ else if(/withdraw/i.test(t)){r.kind="wd";w=t.match(/from\s+\d*\s*-?\s*(.+?)(?:\s+on\s|\s+New|\.\s|$)/i);r.mt="wd"}
+ else if(/paid to/i.test(t)){w=t.match(/paid to\s+(.+?)\.?\s+(?:on\s|for account)/i);r.mt="till"}
+ else if(/sent to/i.test(t)){w=t.match(/sent to\s+(.+?)(?:\s+for account|\s+\+?\d{9,12}|\s+on\s)/i);r.mt=/for account/i.test(t)?"paybill":"send"}
+ else if(/airtime/i.test(t)){r.who="Airtime";r.c="Airtime & data"}
+ if(w)r.who=w[1].trim().replace(/\s+/g," ");return r}
+function parseSms(t){const parts=t.split(/\n\s*\n/).flatMap(ch=>ch.split(/(?=\b[A-Z0-9]{10}\s+Confirmed)|(?=Confirmed\.?\s*Fuliza)|(?=Ksh\.?\s?[\d,.]+\s+from your M-?PESA has been used)/i)).map(s=>s.trim()).filter(s=>/K(?:sh|ES)/i.test(s));return parts.map(parseOne).filter(Boolean)}
+function readSms(){const p=P(),rs=parseSms($("sms").value);if(!rs.length)return tell("I couldn’t find an amount in that. Make sure you copied the whole message.");
+ const codes=new Set(p.tx.map(x=>x.code).filter(Boolean)),seen=new Set();pendSim=simHere();
+ rs.forEach(r=>{r.dup=!!(r.code&&(codes.has(r.code)||seen.has(r.code)));if(r.code)seen.add(r.code);const g=guess(r.who);if(g&&r.t=="out"&&!r.kind){r.c=g.c;r.b=g.b||"p"}if(!r.c)r.c=r.t=="in"?"From a person":"Other";r.on=!r.dup;
+  /* own money moving between M-Pesa and a bank or savings place */
+  if(!r.kind&&!r.bank){const ac=r.mvAc||placeFromText(r.who,["bank","save"]);if(ac){r.mv=ac;r.mvOn=1}}
+  if(r.bank&&r.mvMp){r.mv="mp:"+pendSim;r.mvOn=1}});
+ /* the same transfer pasted from both the bank and M-Pesa: keep the M-Pesa one, remember the bank balance */
+ rs.forEach(r=>{if(!r.bank||!r.mvMp)return;const q=rs.find(z=>!z.bank&&!z.kind&&z.mv==r.ac&&Math.abs(z.a-r.a)<1&&z.d==r.d&&z.t!=r.t);if(q){r.hide=1;r.par=q;if(r.nbb!=null)q.bnb=r.nbb}});
+ const near=(i,ok)=>{for(const j of[i-1,i+1,i-2,i+2]){const q=rs[j];if(q&&!q.kind&&!q.bank&&ok(q))return q}return null};
+ rs.forEach((r,i)=>{if(r.kind=="fz"){const q=near(i,q=>q.t=="out"&&q.fzL==null&&(q.nb==null||q.nb<1)&&q.a+q.f>=r.a-1);if(q){q.fzL=r.a;q.fzAcc=r.acc;if(r.fzTot!=null)q.fzTot=r.fzTot;r.hide=1;r.par=q}}
+  if(r.kind=="fzr"){const q=near(i,q=>q.t=="in"&&q.fzRL==null);if(q){q.fzRL=r.a;if(r.full)q.fzFull=1;if(r.avail!=null)q.fzAvail=r.avail;r.hide=1;r.par=q}}});
+ const base=r=>r.d?new Date(r.d+"T00:00").getTime()/6e4:0;
+ rs.forEach((r,i)=>{r.oi=i;r.key=!r.kind||r.kind=="wd"?(r.tmin!=null?base(r)+r.tmin:null):null});
+ rs.forEach((r,i)=>{if(r.key==null)r.key=r.par&&r.par.key!=null?r.par.key+.5:(i&&rs[i-1].key!=null?rs[i-1].key+.1:base(r)+1439)});
+ rs.sort((a,b)=>a.key-b.key||a.oi-b.oi);
+ pend=rs;rs.forEach(r=>{if(!r.bank)r.sim=pendSim});prefill();showPend()}
+function pendCard(r,i,zf,ms){const lab=r.kind=="wd"?"Cash withdrawal"+(r.who?" · "+esc(r.who):""):r.kind=="fz"?"Fuliza borrowed":r.kind=="fzr"?"Fuliza repayment":esc(r.who||(r.bank?placeName(r.ac):"?"));
+ const head=`<label class="chk" style="margin:0"><input type="checkbox" ${r.on?"checked":""} onchange="pend[${i}].on=this.checked;prefill();showPend()"><span><b class="${r.t=="in"?"in":"out"}">${r.t=="in"?"+":"−"}${K(r.a)}</b> ${lab}<br><span class="mut">${r.bank?"🏦 "+esc(placeName(r.ac))+" · ":""}${fmtWhen(r)}${r.f?" · charge "+K(r.f):""}${r.dup?" · already added":""}</span></span></label>`;
+ const line=r.bank?`<label>Which account?</label><select onchange="pend[${i}].ac=this.value;showPend()">${placeOpts(r.ac,x=>x.type!="mpesa")}</select>`:ms?`<div class="seg" style="margin-top:8px">${S.sims.map(s=>`<button class="${r.sim==s.id?"on":""}" onclick="pend[${i}].sim='${s.id}';prefill();showPend()">${esc(s.name)}</button>`).join("")}</div>`:"";
  if(!r.on)return`<div class="card" style="opacity:.55">${head}</div>`;
  if(r.kind)return`<div class="card">${head}${line}${r.kind=="wd"?'<div class="mut" style="margin-top:6px">Only the agent fee counts as spending; the cash is still yours.</div>':""}${r.fzTot!=null?`<div class="mut">M-Pesa says you now owe ${K(r.fzTot)}. The app will match it.</div>`:""}</div>`;
- const fzAin=zf&&r.t=="out",fzRin=zf&&r.t=="in"&&(+r.fzR>0||r.fzRm||r.fzRL!=null);
+ const here=r.bank?r.ac:"mp:"+r.sim,biz=r.b=="b";
+ const mvSel=`<select onchange="pend[${i}].mv=this.value;showPend()" style="margin-top:6px">${placeOpts(r.mv,x=>x.id!=here)}</select>`;
+ const mvBox=`<label class="chk" style="margin-top:10px"><input type="checkbox" ${r.mvOn?"checked":""} onchange="pend[${i}].mvOn=this.checked;if(this.checked&&!pend[${i}].mv)pend[${i}].mv='${r.bank?"mp:"+SIM0():"cash"}';showPend()"><span>My own money moving ${r.t=="out"?"to":"from"} another place (not spending)</span></label>${r.mvOn?mvSel:""}`;
+ const goalSel=r.mvOn&&r.t=="out"&&P().goals.length?`<select style="margin-top:6px" onchange="pend[${i}].goal=this.value"><option value="">No savings goal</option>${P().goals.filter(g=>!g.place||g.place==r.mv).map(g=>`<option value="${g.id}" ${r.goal==g.id?"selected":""}>Towards: ${esc(g.name)}</option>`).join("")}</select>`:"";
+ const fzAin=zf&&!r.bank&&r.t=="out"&&!r.mvOn,fzRin=zf&&!r.bank&&r.t=="in"&&(+r.fzR>0||r.fzRm||r.fzRL!=null);
+ const loans=P().debts.filter(d=>d.dir=="out");
  return`<div class="card">${head}${line}
- <div class="seg" style="margin-top:8px"><button class="${r.b!="b"?"on":""}" onclick="setPB(${i},'p')">Personal</button><button class="${r.b=="b"?"on":""}" onclick="setPB(${i},'b')">Business</button></div>
- ${catSelect("pc"+i,r.b,r.t=="in",r.c,`data-i="${i}"`)}
- <input style="margin-top:8px" placeholder="${r.t=="in"?(r.b=="b"?"What was it for? e.g. 3 pairs, order for Wanjiku":"What was it for? (optional)"):(r.b=="b"?"What was it for? e.g. delivery to Ruaka":"What was it for? (optional)")}" value="${esc(r.n||"")}" oninput="pend[${i}].n=this.value">
+ <div class="seg" style="margin-top:8px"><button class="${!biz?"on":""}" onclick="setPB(${i},'p')">Personal</button><button class="${biz?"on":""}" onclick="setPB(${i},'b')">Business</button></div>
+ ${mvBox}${goalSel}
+ ${r.mvOn?"":catSelect("pc"+i,r.b,r.t=="in",r.c,`data-i="${i}"`)}
+ ${!r.mvOn&&r.t=="in"&&biz?`<div class="row" style="border:0;padding:8px 0 0"><span class="mut">Of this, delivery fee</span><input style="width:120px;text-align:right;padding:7px 10px" type="number" inputmode="decimal" value="${r.dlv||""}" placeholder="0" oninput="pend[${i}].dlv=this.value"></div>`:""}
+ ${!r.mvOn&&r.t=="out"&&r.c=="Airtime & data"?`<div class="row" style="border:0;padding:8px 0 0"><span class="mut">Of this, repaid Okoa</span><input style="width:120px;text-align:right;padding:7px 10px" type="number" inputmode="decimal" value="${r.okoa||""}" placeholder="0" oninput="pend[${i}].okoa=this.value"></div>`:""}
+ ${!r.mvOn&&r.t=="out"&&!biz&&placeOwn(here)=="b"?`<div class="mut" style="margin-top:6px;color:var(--warn)">Paid from a business ${r.bank?"account":"line"} for something personal: it will count as paying yourself.</div>`:""}
+ ${!r.mvOn&&r.t=="out"&&r.c=="Delivery"?`<label class="chk"><input type="checkbox" ${r.cp?"checked":""} onchange="pend[${i}].cp=this.checked"> The client paid for this delivery</label>`:""}
+ ${!r.mvOn&&r.t=="out"&&r.c=="Loan repayment"&&loans.length?`<select style="margin-top:6px" onchange="pend[${i}].loan=this.value"><option value="">Which loan?</option>${loans.map(l=>`<option value="${l.id}" ${r.loan==l.id?"selected":""}>${esc(l.who)}</option>`).join("")}</select>`:""}
+ <input style="margin-top:8px" placeholder="${r.t=="in"?(biz?"What was it for? e.g. 3 pairs, order for Wanjiku":"What was it for? (optional)"):(biz?"What was it for? e.g. delivery to Ruaka":"What was it for? (optional)")}" value="${esc(r.n||"")}" oninput="pend[${i}].n=this.value">
  ${fzAin?`<div class="row" style="border:0;padding:8px 0 0"><span class="mut">Covered by Fuliza</span><input style="width:120px;text-align:right;padding:7px 10px" type="number" inputmode="decimal" value="${r.fzA??""}" placeholder="0" oninput="pend[${i}].fzA=this.value;pend[${i}].fzAm=1"></div>${r.fzWhy?`<div class="mut">${r.fzWhy}</div>`:""}`:""}
  ${fzRin?`<div class="row" style="border:0;padding:8px 0 0"><span class="mut">Taken for Fuliza</span><input style="width:120px;text-align:right;padding:7px 10px" type="number" inputmode="decimal" value="${r.fzR??""}" placeholder="0" oninput="pend[${i}].fzR=this.value;pend[${i}].fzRm=1"></div>${r.fzWhy?`<div class="mut">${r.fzWhy}</div>`:""}`:""}
  </div>`}
-function setPB(i,b){const r=pend[i];r.b=b;if(!catsFor(b,r.t=="in").includes(r.c))r.c=r.t=="in"?(b=="b"?"Sales":"From a person"):"Other";showPend()}
-function setPendSim(s){pendSim=s;pend.forEach(r=>{r.sim=s;if(!r.fzAm)delete r.fzA;if(!r.fzRm)delete r.fzR});prefill();showPend()}
 function savePend(){const p=P(),streakBefore=streak(p).todayDone,now=today();let n=0,fzN=0,fzR=0;
  pend.forEach(r=>{if(r.hide)return;const sim=r.sim||SIM0();
-  if(!r.on){if(r.dup&&r.nb!=null)p.mpw[sim]={v:r.nb,ts:nts()};return}n++;
+  if(!r.on){if(r.dup&&r.nb!=null&&!r.bank)p.mpw[sim]={v:r.nb,ts:nts()};return}n++;
   if(r.kind=="fz"){if(p.zf){p.fz.push({id:uid(),sim,d:r.d,a:r.a,acc:r.acc,b:"p",done:false});fzN+=r.a;if(r.fzTot!=null)setFzOwed(p,sim,r.fzTot,"M-Pesa message")}return}
   if(r.kind=="fzr"){if(p.zf){fzR+=repayFz(p,r.a,r.d,"p",undefined,"from M-Pesa message",sim);if(r.full){setFzOwed(p,sim,0,"M-Pesa message");if(r.avail!=null)p.fzl[sim]=r.avail}}return}
   if(r.kind=="wd"){const lk=uid();if(r.f)p.tx.push({id:uid(),ts:nts(),at:now,d:r.d,t:"out",b:"p",s:"p",a:r.f,m:"M-Pesa",sim,who:"Withdrawal fee",c:"Transaction costs",n:"withdrew "+K(r.a)+(r.who?" at "+r.who:""),code:r.code,raw:r.raw,lk});
-   p.tx.push({id:uid(),ts:nts(),lk,at:now,d:r.d,t:"out",b:"p",s:"p",rp:1,a:r.a,m:"M-Pesa",sim,who:"Cash withdrawal",c:"Transfer",n:"M-Pesa to cash"},{id:uid(),ts:nts(),lk,at:now,d:r.d,t:"in",b:"p",s:"p",rp:1,a:r.a,m:"Cash",who:"Cash withdrawal",c:"Transfer",n:"M-Pesa to cash"});
+   p.tx.push({id:uid(),ts:nts(),lk,at:now,d:r.d,t:"out",b:"p",s:"p",rp:1,a:r.a,m:"M-Pesa",sim,who:"Cash withdrawal",c:"Transfer",n:"M-Pesa to cash"},{id:uid(),ts:nts(),lk,at:now,d:r.d,t:"in",b:"p",s:"p",rp:1,a:r.a,m:"Cash",ac:"cash",who:"Cash withdrawal",c:"Transfer",n:"M-Pesa to cash"});
    if(r.nb!=null)p.mpw[sim]={v:r.nb,ts:_ts};return}
-  const b=r.b||"p",x={id:uid(),ts:nts(),at:now,d:r.d,t:r.t,b,s:b,a:r.a,m:"M-Pesa",sim,who:r.who,c:r.c,n:(r.n||"").trim(),f:r.f,code:r.code,mt:r.mt,raw:r.raw};
-  if(x.t=="out"&&p.zf){const v=Math.min(x.a+x.f,Math.max(0,+r.fzA||0));if(v>0){x.fzA=v;p.fz.push({id:uid(),sim,d:x.d,a:v,acc:r.fzAcc,b,done:false,src:x.id});fzN+=v}}
-  p.tx.push(x);
-  if(x.t=="in"&&p.zf){const v=Math.min(x.a,Math.max(0,+r.fzR||0));if(v>0){x.lk=uid();fzR+=repayFz(p,v,x.d,b,x.lk,undefined,sim)}if(r.fzFull){setFzOwed(p,sim,0,"M-Pesa message");if(r.fzAvail!=null)p.fzl[sim]=r.fzAvail}}
-  if(r.fzTot!=null&&p.zf)setFzOwed(p,sim,r.fzTot,"M-Pesa message");
-  if(r.nb!=null)p.mpw[sim]={v:r.nb,ts:_ts}});
+  const b=r.b||"p",here=r.bank?r.ac:"mp:"+sim;
+  if(r.mvOn&&r.mv&&r.mv!=here){const o={from:r.t=="out"?here:r.mv,to:r.t=="out"?r.mv:here,a:r.a,f:r.f,w:b,d:r.d,n:(r.n||"").trim(),code:r.code,raw:r.raw,gi:r.goal};
+   if(!r.bank&&r.t=="in"&&p.zf)o.fzR=Math.min(r.a,Math.max(0,+r.fzR||0));const res=moveLegs(p,o);fzR+=res.used;
+   if(r.bnb!=null&&r.mv&&!String(r.mv).startsWith("mp:"))p.acb[r.mv]={v:r.bnb,ts:_ts}}
+  else{const L=r.bank?legFields(r.ac):{m:"M-Pesa",sim},x=Object.assign({id:uid(),ts:nts(),at:now,d:r.d,t:r.t,b,s:r.t=="out"&&placeOwn(here)=="b"?"b":b,a:r.a,who:r.who,c:r.c,n:(r.n||"").trim(),f:r.f,code:r.code,mt:r.mt,raw:r.raw},L);
+   if(r.dlv>0&&x.t=="in")x.dlv=Math.min(x.a,+r.dlv);if(r.okoa>0&&x.t=="out")x.okoa=Math.min(x.a,+r.okoa);if(r.cp)x.cp=1;if(r.loan)x.loan=+r.loan;
+   if(!r.bank&&x.t=="out"&&p.zf){const v=Math.min(x.a+x.f,Math.max(0,+r.fzA||0));if(v>0){x.fzA=v;p.fz.push({id:uid(),sim,d:x.d,a:v,acc:r.fzAcc,b,done:false,src:x.id});fzN+=v}}
+   p.tx.push(x);loanLink(p,x);
+   if(!r.bank&&x.t=="in"&&p.zf){const v=Math.min(x.a,Math.max(0,+r.fzR||0));if(v>0){x.lk=uid();fzR+=repayFz(p,v,x.d,b,x.lk,undefined,sim)}}}
+  if(!r.bank&&p.zf){if(r.fzFull){setFzOwed(p,sim,0,"M-Pesa message");if(r.fzAvail!=null)p.fzl[sim]=r.fzAvail}if(r.fzTot!=null)setFzOwed(p,sim,r.fzTot,"M-Pesa message")}
+  if(r.bank&&r.nbb!=null)p.acb[r.ac]={v:r.nbb,ts:_ts};
+  if(!r.bank&&r.nb!=null)p.mpw[sim]={v:r.nb,ts:_ts}});
  pend=[];const lit=!streakBefore;save();closeS();render();if(n&&(lit||fzR&&fzTotal(p)<0.5))confetti();toast(n+" saved"+(fzN?` · ${K(fzN)} Fuliza logged`:"")+(fzR?` · ${K(fzR)} went to Fuliza`:""))}
-/* ---------- Move money, reconcile ---------- */
-function openXf(kind){kind=kind||"pb";const cash=kind=="wd"||kind=="dep";openS(`<h2 style="margin-top:0">Move money</h2>
- <div class="seg"><button class="${!cash?"on":""}" onclick="openXf('pb')">Personal ↔ Business</button><button class="${kind=="wd"?"on":""}" onclick="openXf('wd')">Withdraw cash</button><button class="${kind=="dep"?"on":""}" onclick="openXf('dep')">Deposit cash</button></div>
- ${cash?`<div class="mut">${kind=="wd"?"M-Pesa → cash in hand at an agent. It’s still your money, so only the agent fee counts as spending.":"Cash in hand → M-Pesa at an agent. Depositing is free."+(P().zf&&fzTotal(P())>0.5?` <b class="out">M-Pesa will take Fuliza first.</b>`:"")}</div>
- <label>Whose money</label><select id="xw"><option value="p">Personal money</option><option value="b">Business money</option></select>
- ${multiSim()?`<label>Line (SIM)</label><select id="xs">${S.sims.map(s=>`<option value="${s.id}" ${s.id==simHere()?"selected":""}>${esc(s.name)}</option>`).join("")}</select>`:""}`:`<label>Direction</label><select id="xd"><option value="pb">Personal money → Business money</option><option value="bp">Business money → Personal money</option></select>`}
- <label>Amount (KSh)</label><input id="xa" type="number" inputmode="decimal" ${kind=="wd"?`oninput="if(!$('xf').dataset.man)$('xf').value=this.value?band(WD,+this.value)||'':''"`:""}><label>Date</label><input id="xt" type="date" value="${today()}">
- ${kind=="dep"?"":`<label>${kind=="wd"?"Agent fee (filled in from the 2026 rates)":"Transaction cost (optional)"}</label><input id="xf" type="number" inputmode="decimal" oninput="this.dataset.man=1">`}
- <label>Note (optional)</label><input id="xn" placeholder="${cash?"e.g. agent at the stage":"e.g. my salary from the business"}">${cash?"":`<div class="mut">Tip: paying yourself a fixed amount from the business each month keeps the two apart.</div>`}<br><button onclick="doXf('${kind}')">Save</button>`)}
-function doXf(kind){const a=parseFloat($("xa").value);if(!a)return toast("Enter an amount");const dt=$("xt").value||today(),n=$("xn").value,f=parseFloat(($("xf")||{}).value)||0,p=P(),lk=uid();
- if(kind=="wd"||kind=="dep"){const w=$("xw").value,sim=$("xs")?$("xs").value:simHere(),from=kind=="wd"?"M-Pesa":"Cash",to=kind=="wd"?"Cash":"M-Pesa",who=kind=="wd"?"Cash withdrawal":"Cash deposit",nn=n||from+" to "+to.toLowerCase();
-  p.tx.push({id:uid(),ts:nts(),lk,at:today(),d:dt,t:"out",b:w,s:w,rp:1,a,m:from,sim:from=="M-Pesa"?sim:undefined,who,c:"Transfer",n:nn},{id:uid(),ts:nts(),lk,at:today(),d:dt,t:"in",b:w,s:w,rp:1,a,m:to,sim:to=="M-Pesa"?sim:undefined,who,c:"Transfer",n:nn});
-  if(f>0)p.tx.push({id:uid(),ts:nts(),lk,at:today(),d:dt,t:"out",b:w,s:w,a:f,m:"M-Pesa",sim,who:"Withdrawal fee",c:"Transaction costs",n});
-  let used=0;if(kind=="dep"&&fzAuto(p)&&fzTotal(p,sim)>0.5)used=repayFz(p,a,dt,w,lk,undefined,sim);
-  save();closeS();render();if(used&&fzTotal(p,sim)<0.5){confetti();toast("Deposited. Fuliza cleared ✦")}else toast(used?`Deposited. ${K(used)} went to Fuliza.`:kind=="wd"?"Withdrawal saved":"Deposit saved");return}
- const d=$("xd").value,s=d[0],t=d[1],nm=z=>z=="b"?"business":"personal";
- p.tx.push({id:uid(),ts:nts(),lk,at:today(),d:dt,t:"out",b:s,s,rp:1,a,m:"M-Pesa",who:"Moved to "+nm(t),c:"Transfer",n});p.tx.push({id:uid(),ts:nts(),lk,at:today(),d:dt,t:"in",b:t,s:t,rp:1,a,m:"M-Pesa",who:"Moved from "+nm(s),c:"Transfer",n});if(f>0)p.tx.push({id:uid(),ts:nts(),lk,at:today(),d:dt,t:"out",b:s,s,a:f,m:"M-Pesa",who:"Transfer fee",c:"Transaction costs",n});save();closeS();render()}
-function openRecon(){const p=P(),b=bal(p),c=cashBal(p);openS(`<h2 style="margin-top:0">Check my real balance</h2><div class="mut">Fill in only what you know. If something doesn’t match, an entry was probably missed.</div>
- <label>Personal money I really have (all places together)</label><input id="rp" type="number" inputmode="decimal" placeholder="App says ${Math.round(b.p)}"><label>Business money I really have</label><input id="rb" type="number" inputmode="decimal" placeholder="App says ${Math.round(b.b)}">
- <div class="card"><b>📱 M-Pesa${p.zf?" and Fuliza":""}</b><div class="mut">From your latest M-Pesa message, or dial *334#${p.zf?". Fuliza owed: *234# → Fuliza M-PESA → Balance":""}. The app then keeps count by itself.</div>
- ${S.sims.map(s=>{const w=walletBal(p,s.id);return`${multiSim()?`<div style="margin-top:12px;font-weight:700">${esc(s.name)}</div>`:""}<label>M-Pesa balance right now</label><input id="rw_${s.id}" type="number" inputmode="decimal" placeholder="${w==null?"e.g. 0":"App thinks "+Math.max(0,w)}">${p.zf?`<label>Fuliza I owe right now (0 if none)</label><input id="rf_${s.id}" type="number" inputmode="decimal" placeholder="App thinks ${Math.round(fzTotal(p,s.id))}">`:""}`}).join("")}</div>
- <label>💵 Cash in hand right now</label><input id="rc" type="number" inputmode="decimal" placeholder="${c==null?"Count the cash in your purse":"App thinks "+c}"><br><button onclick="doRecon()">Compare</button><div id="rr"></div>`)}
-let reconFz={};
-function doRecon(){const p=P(),b=bal(p),vp=$("rp").value,vb=$("rb").value,dp=vp===""?0:+vp-b.p,db=vb===""?0:+vb-b.b;let out="";reconFz={};
- if($("rc").value!==""){p.cha={v:+$("rc").value,ts:nts()};out+=`<div class="row"><span>Cash in hand</span><b class="in">Saved ✓</b></div>`}
- S.sims.forEach(s=>{const w=$("rw_"+s.id),f=$("rf_"+s.id),nm=multiSim()?s.name+": ":"";
-  if(w&&w.value!==""){p.mpw[s.id]={v:+w.value,ts:nts()};out+=`<div class="row"><span>${esc(nm)}M-Pesa balance</span><b class="in">Saved ✓</b></div>`}
-  if(f&&f.value!==""){const d=+f.value-fzTotal(p,s.id);if(Math.abs(d)>=1)reconFz[s.id]=+f.value;out+=`<div class="row"><span>${esc(nm)}Fuliza</span><b class="${Math.abs(d)<1?"in":"warn"}">${Math.abs(d)<1?"Matches ✓":d>0?"You owe "+K(d)+" more than the app knows":"You owe "+K(-d)+" less than the app thinks"}</b></div>`}});
- save();const fix=Math.abs(dp)>=1||Math.abs(db)>=1||Object.keys(reconFz).length;
- $("rr").innerHTML=`<div class="card">${vp!==""||vb!==""?[["Personal",dp,vp],["Business",db,vb]].filter(z=>z[2]!=="").map(([l,d])=>`<div class="row"><span>${l}</span><b class="${Math.abs(d)<1?"in":"warn"}">${Math.abs(d)<1?"Matches ✓":"You have "+K(Math.abs(d))+(d>0?" more":" less")+" than the app"}</b></div>`).join(""):""}${out||'<div class="mut">Nothing filled in.</div>'}</div>${fix?`<div class="mut">Corrections don’t count as spending or income in reports.</div><br><button class="g" onclick="fixRecon(${dp},${db})">Correct the app to match</button>`:""}`}
-function fixRecon(dp,db){const p=P();[["p",dp],["b",db]].forEach(([k,d])=>{if(Math.abs(d)>=1)p.tx.push({id:uid(),ts:nts(),at:today(),d:today(),t:d>0?"in":"out",b:k,s:k,rp:1,a:Math.abs(d),m:"Cash",who:"Balance correction",c:"Correction",n:"from balance check"})});
- Object.entries(reconFz).forEach(([s,v])=>setFzOwed(p,s,v,"set from balance check"));reconFz={};save();closeS();render();toast("Corrected")}
+
+/* ---------- Business money discipline ---------- */
+/* Is a place mainly business money (Loop, Exarkie line) or personal? */
+function placeOwn(pid){if(String(pid).startsWith("mp:")){const z=S.sims.find(s=>s.id==pid.slice(3));return z&&z.own=="b"?"b":"p"}const a=acct(pid);return a&&a.own=="b"?"b":"p"}
+const potOf=x=>x.s||x.b||"p";
+/* Business money and personal money at each place, worked out from what you recorded */
+function potSplit(p,pid){let flow={p:0,b:0};p.tx.forEach(x=>{if(acOf(x)!=pid)return;const k=potOf(x);if(flow[k]==null)return;flow[k]+=x.t=="in"?x.a:-(x.a+(x.f||0)-(x.fzA||0))});
+ const tot=placeBal(p,pid),own=placeOwn(pid);let biz,per;
+ if(own=="b"){per=flow.p;biz=tot==null?null:tot-per}else{biz=flow.b;per=tot==null?null:tot-biz}
+ return{biz:biz==null?null:Math.round(biz),per:per==null?null:Math.round(per),own,tot}}
+/* When business money last came into a personal place */
+function lastBizIn(p,pid){const x=p.tx.filter(x=>acOf(x)==pid&&potOf(x)=="b"&&x.t=="in").sort((a,b)=>b.d.localeCompare(a.d))[0];return x?x.d:null}
+/* Paying yourself from the business this month: business→personal moves + personal things paid with business money */
+function ownPayIn(p,ym){let t=0;const groups={};p.tx.forEach(x=>{if(ymOf(x.d)!=ym)return;if(x.lk&&x.c=="Transfer"){(groups[x.lk]=groups[x.lk]||[]).push(x);return}if(x.t=="out"&&!x.rp&&potOf(x)=="b"&&(x.b||"p")=="p")t+=x.a+(x.f||0)});
+ Object.values(groups).forEach(g=>{const o=g.find(x=>x.t=="out"),i=g.find(x=>x.t=="in");if(o&&i&&potOf(o)=="b"&&potOf(i)=="p")t+=o.a});return t}
+function bizCard(p){const rows=places().map(x=>[x,potSplit(p,x.id)]),loose=rows.filter(([x,s])=>s.own=="p"&&s.biz>=1),neg=rows.filter(([x,s])=>s.own=="p"&&s.biz<=-1),total=rows.reduce((q,[x,s])=>q+(s.biz>0?s.biz:0),0);
+ const ym=ymOf(today()),paid=ownPayIn(p,ym),cap=+S.ownPay||0;
+ if(!total&&!loose.length&&!neg.length&&!cap&&!paid)return"";
+ return`<div class="card tgold"><div class="row" style="border:0;padding:0"><b>💼 Business money</b><b>${K(total)}</b></div>
+ ${rows.filter(([x,s])=>s.biz>=1).map(([x,s])=>`<div class="row" style="padding:5px 0"><span class="mut">${esc(x.name)}</span><span>${K(s.biz)}</span></div>`).join("")}
+ ${loose.map(([x,s])=>{const since=lastBizIn(p,x.id);return`<div class="card" style="margin:8px 0 0;padding:10px"><b>${K(s.biz)} of business money is on ${esc(x.name)}</b><div class="mut">${since?"Sent there on "+since+". ":""}Record what it was used for, so it doesn’t mix with your own money.</div><div class="btns"><button class="sm" onclick="draft={t:'out',b:'b',s:'b',sx:1,pw:'${x.type=="mpesa"?"M-Pesa":x.id}',sim:'${x.sim||""}'||undefined};openTx()">Record a business payment</button><button class="g sm" onclick="openXf('mv',{from:'${x.id}',to:'${(places().find(z=>placeOwn(z.id)=="b")||{}).id||"loop"}',w:'b',a:${s.biz}})">Send it back</button></div></div>`}).join("")}
+ ${neg.map(([x,s])=>`<div class="mut" style="margin-top:6px">Your own money on ${esc(x.name)} paid ${K(-s.biz)} of business costs. Move it from the business to yourself (Personal ↔ Business) to even it out.</div>`).join("")}
+ ${cap||paid?`<div style="margin-top:8px"><div class="row" style="border:0;padding:0"><span class="mut">Paid myself this month</span><b class="${cap&&paid>cap?"out":""}">${K(paid)}${cap?" of "+K(cap):""}</b></div>${cap?`<div class="track"><div class="bar" style="width:${Math.min(100,paid/cap*100)}%;background:${paid>cap?"var(--out)":"var(--gold)"}"></div></div>`:`<div class="mut">Set a monthly pay in Settings to keep business money from leaking.</div>`}</div>`:""}</div>`}
+/* Bethlehem export: this period's business entries */
+function bizCsv(){const p=P(),r=range(),rows=["date,type,amount,charges,category,who,note,paid with or into"];p.tx.filter(x=>inR(x,r)&&x.b=="b"&&!x.rp).sort((a,b)=>a.d.localeCompare(b.d)).forEach(x=>rows.push([x.d,x.t=="in"?"money in":"expense",x.a,x.f||0,x.c,x.who,x.n+(x.dlv?` (delivery fee ${x.dlv})`:""),placeName(acOf(x))].map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")));
+ showText("Business entries for Bethlehem",`${lab(r)}: ${rows.length-1} business entries. Copy and paste into Bethlehem or a spreadsheet.`,rows.join("\n"),true,'<button onclick="cp()">Copy</button>')}
+
 /* ---------- Settings, backups ---------- */
 function openSet(){const p=P();openS(`<h2 style="margin-top:0">Settings</h2><label>Name of this tab</label><input id="nm" value="${esc(p.name)}">
  <label>Uses Ziidi and Fuliza?</label><select id="zf"><option value="1" ${p.zf?"selected":""}>Yes</option><option value="0" ${p.zf?"":"selected"}>No</option></select>
  <h2>My M-Pesa lines (SIMs)</h2><div class="mut">Name each line, e.g. “Safaricom personal” and “Business line”. When you paste messages you pick which line they came to, and each line keeps its own M-Pesa balance and Fuliza.</div>
- ${S.sims.map(s=>`<div class="row" style="border:0;padding:4px 0"><input id="sn_${s.id}" value="${esc(s.name)}">${S.sims.length>1?`<button class="x" onclick="rmSim('${s.id}')" aria-label="Remove line">✕</button>`:""}</div>`).join("")}<button class="g sm" onclick="addSim()">＋ Add a line</button>
+ ${S.sims.map(s=>`<div class="row" style="border:0;padding:4px 0"><input id="sn_${s.id}" value="${esc(s.name)}"><label class="chk" style="margin:0;white-space:nowrap;font-size:13px"><input type="checkbox" id="so_${s.id}" ${s.own=="b"?"checked":""}> Business</label>${S.sims.length>1?`<button class="x" onclick="rmSim('${s.id}')" aria-label="Remove line">✕</button>`:""}</div>`).join("")}<button class="g sm" onclick="addSim()">＋ Add a line</button>
+ <h2>My accounts and savings places</h2><div class="mut">Banks, cash and savings apps. Each keeps its own balance. The rate (% a year) is used to estimate interest on savings.</div>
+ ${S.accts.map(a=>`<div class="card" style="padding:8px 10px;margin:6px 0"><div class="row" style="border:0;padding:0;gap:6px"><input id="an_${a.id}" value="${esc(a.name)}" style="flex:2;min-width:0"><select id="at_${a.id}" style="flex:1.3;min-width:0">${["bank","save","cash"].map(t=>`<option value="${t}" ${a.type==t?"selected":""}>${TYPEN[t]}</option>`).join("")}</select><input id="ar_${a.id}" type="number" step="0.1" value="${a.rate||""}" placeholder="% yr" style="flex:.9;min-width:0"><button class="x" onclick="rmAcct('${a.id}')" aria-label="Remove">✕</button></div><label class="chk" style="margin:6px 0 0;font-size:13px"><input type="checkbox" id="ao_${a.id}" ${a.own=="b"?"checked":""}> Mainly business money</label></div>`).join("")}<button class="g sm" onclick="addAcct()">＋ Add an account</button>
  <h2>My own categories</h2><div class="mut">Add new ones any time from a category list (“＋ New category…”), e.g. Delivery or Packaging.</div>
  ${["p","b","ip","ib"].flatMap(k=>((S.xc||{})[k]||[]).map((c,i)=>`<div class="row"><span>${esc(c)} <span class="pill">${{p:"personal",b:"business",ip:"money in",ib:"business money in"}[k]}</span></span><button class="x" onclick="rmCat('${k}',${i})">✕</button></div>`)).join("")||'<div class="mut" style="margin-top:6px">None yet.</div>'}
- <h2>Plan and money</h2>
+ <h2>Plan and money</h2><label>My monthly pay from the business (KSh)</label><input id="opay" type="number" inputmode="decimal" value="${S.ownPay||""}" placeholder="e.g. 30000"><div class="mut">Anything you take from business money for personal things counts towards this. The app warns you when you go over.</div>
  <label>Giving (firstfruits) % of income for the plan</label><input id="gv" type="number" step="0.5" value="${S.give??10}">
  <label>Emergency fund target, in months of essentials</label><input id="efm" type="number" value="${S.efm||3}">
  <label>Personal money I had before my first entry (KSh)</label><input id="ob1" type="number" value="${(p.ob||{}).p||""}"><label>Business money I had before my first entry (KSh)</label><input id="ob2" type="number" value="${(p.ob||{}).b||""}">
@@ -630,8 +754,10 @@ function openSet(){const p=P();openS(`<h2 style="margin-top:0">Settings</h2><lab
  <label>New PIN (leave empty to keep the current one)</label><input id="pin" type="password" inputmode="numeric" value="">
  <br><button onclick="saveSet()">Save</button><h2>Bible verses</h2><button class="g" onclick="openVerses()">My verses (NKJV, GNB, TPT…)</button>
  <h2>Online backup</h2><div class="mut">${cst}</div><div class="btns"><button class="g" onclick="cloudNow(1).then(()=>openSet())">Back up now</button><button class="g" onclick="cloudRestore()">Restore</button></div>
- <h2>If something goes wrong</h2><div class="btns"><button class="g" onclick="exp()">Back up my data</button><button class="g" onclick="imp()">Restore a backup</button></div><div class="btns"><button class="g" onclick="mrg()">Combine copies</button><button class="g" onclick="csv()">Copy as CSV</button></div><div class="btns"><button class="g" onclick="undoDel()">Undo last delete</button><button class="g" onclick="rmPin()">Remove PIN</button></div><div class="btns"><button class="g" onclick="wipe(false)">Erase this tab</button><button class="g" onclick="wipe(true)">Erase everything</button></div><div class="mut" style="margin-top:8px">${stat()}</div><div style="text-align:center;margin:18px 0 4px;font-weight:700;color:var(--acc)">Version 13 ✦</div>`)}
-function simNames(){S.sims.forEach(s=>{const e=$("sn_"+s.id);if(e&&e.value.trim())s.name=e.value.trim()})}
+ <h2>If something goes wrong</h2><div class="btns"><button class="g" onclick="exp()">Back up my data</button><button class="g" onclick="imp()">Restore a backup</button></div><div class="btns"><button class="g" onclick="mrg()">Combine copies</button><button class="g" onclick="csv()">Copy as CSV</button></div><div class="btns"><button class="g" onclick="undoDel()">Undo last delete</button><button class="g" onclick="rmPin()">Remove PIN</button></div><div class="btns"><button class="g" onclick="wipe(false)">Erase this tab</button><button class="g" onclick="wipe(true)">Erase everything</button></div><div class="mut" style="margin-top:8px">${stat()}</div><div style="text-align:center;margin:18px 0 4px;font-weight:700;color:var(--acc)">Version 15 ✦</div>`)}
+function simNames(){S.sims.forEach(s=>{const e=$("sn_"+s.id),o=$("so_"+s.id);if(e&&e.value.trim())s.name=e.value.trim();if(o)s.own=o.checked?"b":"p"});if($("opay"))S.ownPay=+$("opay").value||0;(S.accts||[]).forEach(a=>{const n=$("an_"+a.id),t=$("at_"+a.id),r=$("ar_"+a.id);if(n&&n.value.trim())a.name=n.value.trim();if(t)a.type=t.value;if(r)a.rate=+r.value||0;const o=$("ao_"+a.id);if(o)a.own=o.checked?"b":"p"})}
+function addAcct(){simNames();S.accts.push({id:"a"+Date.now().toString(36),name:"New account",type:"bank"});save();openSet()}
+async function rmAcct(id){simNames();const used=S.p.some(p=>p.tx.some(x=>acOf(x)==id));if(!await ask(used?"Remove this account? Its past entries stay, but they won’t count towards any account balance.":"Remove this account?","Remove"))return openSet();S.accts=S.accts.filter(a=>a.id!=id);S.p.forEach(p=>{delete p.acb[id]});save();openSet()}
 function addSim(){simNames();S.sims.push({id:"s"+Date.now().toString(36),name:"Line "+(S.sims.length+1)});save();openSet()}
 async function rmSim(id){simNames();const keepTo=S.sims.find(s=>s.id!=id),used=S.p.some(p=>p.tx.some(x=>x.sim==id)||p.fz.some(f=>f.sim==id));
  if(!await ask(used?`Remove this line? Its entries and Fuliza will move to “${esc(keepTo.name)}”.`:"Remove this line?","Remove"))return openSet();
